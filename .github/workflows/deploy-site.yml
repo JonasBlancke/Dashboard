@@ -60,20 +60,15 @@ jobs:
           # frontend routes with query + hash only (no path segments), so a
           # relative ref always resolves against the site root. The char class
           # matches the delimiter right before the slash: " ' ` ( = , or space.
+          # app.js's Forecast module resolves MapLibre image URLs through its own
+          # baseHref() helper, which handles both the leading-slash (dev) and the
+          # relative (this rewrite) forms — no extra JS surgery needed.
           grep -rlZ -E $'["\x27`(=, ]/(css|js|vendor|data)/' _site \
                --include='*.html' --include='*.js' --include='*.css' \
             | xargs -0 -r sed -i -E 's#([]"'"'"'`(=, ])/(css|js|vendor|data)/#\1\2/#g'
           echo "remaining absolute refs (should be none):"
           ! grep -rn -E $'[]"\x27`(=, ]/(css|js|vendor|data)/' _site \
                --include='*.html' --include='*.js' --include='*.css'
-
-          # MapLibre image sources need an absolute URL — app.js builds them as
-          # `location.origin + "/data/..."`. After the rewrite above that path is
-          # now relative ("data/..."), so the concat is broken. Swap the base for
-          # the current directory URL (".../Dashboard/" on Pages, ".../" at a
-          # domain root) so "base + data/..." resolves under the subpath.
-          sed -i -E 's#location\.origin \+ #document.baseURI.replace(/[^/]*$/, "") + #g' _site/js/app.js
-          grep -n 'location\.origin\|baseURI' _site/js/app.js || true
 
           # forecast-only: drop the epw.js tag, hide the other two tabs/panels,
           # retitle, and force the Live Forecast tab open on load.

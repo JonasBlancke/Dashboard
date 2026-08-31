@@ -82,10 +82,21 @@ def _remap(x: float) -> float:
 
 RAMP = [(x, _sample_turbo(_remap(x))) for x in [i / 20 for i in range(21)]]
 
+# ColorBrewer "Reds" 9-class — the UHI (per-hour, rescaled) layer. Coldest pixel
+# of the hour reads near-white, warmest reads deep red. Kept in sync with the
+# frontend (Forecast.REDS in js/app.js).
+REDS = [
+    (0.000, (255, 245, 240)), (0.125, (254, 224, 210)), (0.250, (252, 187, 161)),
+    (0.375, (252, 146, 114)), (0.500, (251, 106, 74)),  (0.625, (239, 59, 44)),
+    (0.750, (203, 24, 29)),   (0.875, (165, 15, 21)),   (1.000, (103, 0, 13)),
+]
 
-def _lut(n: int = 512) -> np.ndarray:
-    xs = np.array([s[0] for s in RAMP])
-    cols = np.array([s[1] for s in RAMP], dtype=float)
+UHI_MIN_SPAN_C = 2.0     # per-hour UHI scale is never narrower than this
+
+
+def _lut(stops=RAMP, n: int = 512) -> np.ndarray:
+    xs = np.array([s[0] for s in stops])
+    cols = np.array([s[1] for s in stops], dtype=float)
     g = np.linspace(0, 1, n)
     out = np.empty((n, 3), np.uint8)
     for c in range(3):
@@ -93,9 +104,34 @@ def _lut(n: int = 512) -> np.ndarray:
     return out
 
 
-def colorize(arr: np.ndarray, lo: float, hi: float, lut: np.ndarray) -> np.ndarray:
+def _equalise(values: np.ndarray, lo: float, hi: float, n_ctrl: int = 33):
+    """Histogram-equalise the [lo,hi] domain against `values` (finite only) so the
+    colour ramp spends more steps where pixels are dense. Returns (edges, ramp_t):
+    piecewise-linear map from a normalised data position [0..1] to a ramp
+    position [0..1]. Falls back to the identity map for a degenerate spread."""
+    v = values[np.isfinite(values)]
+    if v.size < 100 or hi <= lo:
+        u = np.linspace(0.0, 1.0, n_ctrl)
+        return u, u
+    q = np.linspace(0.0, 1.0, n_ctrl)
+    # data value at each quantile, clipped to the domain, normalised to [0..1]
+    edges = np.clip((np.quantile(v, q) - lo) / (hi - lo), 0.0, 1.0)
+    edges[0], edges[-1] = 0.0, 1.0
+    edges = np.maximum.accumulate(edges)                    # monotone
+    # blend equalised (q) with linear (edges) so extreme runs don't over-stretch
+    ramp_t = 0.5 * q + 0.5 * edges
+    ramp_t = np.maximum.accumulate(ramp_t)
+    ramp_t = (ramp_t - ramp_t[0]) / max(1e-9, ramp_t[-1] - ramp_t[0])
+    return edges, ramp_t
+
+
+def colorize(arr: np.ndarray, lo: float, hi: float, lut: np.ndarray,
+             eq: tuple | None = None) -> np.ndarray:
     finite = np.isfinite(arr)
     t = np.clip((np.where(finite, arr, lo) - lo) / (hi - lo), 0, 1)
+    if eq is not None:
+        edges, ramp_t = eq
+        t = np.interp(t, edges, ramp_t)                     # non-linear ramp
     idx = (t * (lut.shape[0] - 1)).round().astype(np.int32)
     rgb = lut[idx]
     a = np.where(finite, 235, 0).astype(np.uint8)
@@ -237,7 +273,8 @@ def build(nc_path: Path, city_id: str, cfg: dict, out_root: Path):
         shutil.rmtree(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    lut = _lut()
+    lut = _lut(RAMP)
+    reds_lut = _lut(REDS)
     # Colour domain: auto from the frames actually shown, rounded outward to
     # whole degrees, then widened symmetrically to at least MIN_DOMAIN_SPAN °C.
     # A `value_domain_c` in the registry still wins (pin it deliberately).
@@ -253,12 +290,22 @@ def build(nc_path: Path, city_id: str, cfg: dict, out_root: Path):
             lo -= pad; hi += pad
         dom_src = "auto"
 
+    # Non-linear ("equalised") ramp for the absolute layer — auto from the shown
+    # frames' value distribution, so the mid-range where most pixels sit gets
+    # more colour steps. No-op when a domain is pinned or the spread is tiny.
+    shown_vals = da.isel(time=frame_idx).values
+    eq = _equalise(shown_vals, lo, hi)
+
     print(f"[{city_id}] {nc_path.name}")
     print(f"  grid {nx}x{ny} @ {src_crs}  ->  {dw}x{dh} @ 4326 (native res)")
     print(f"  {n_all} hourly steps; map frames {i0}..{i1 - 1} ({len(frame_idx)}h); "
-          f"domain {lo}..{hi} °C ({dom_src})")
+          f"domain {lo}..{hi} °C ({dom_src}); equalised ramp on abs layer")
 
     # ---- per-hour PNGs (native resolution, warp only) --------------------
+    #   frame_NNN.png     — absolute ta_abs, fixed [lo,hi], equalised ramp
+    #   frame_uhi_NNN.png — per-hour rescaled: coldest pixel of that hour -> 0,
+    #                       warmest -> 1 (min span UHI_MIN_SPAN_C), Reds ramp
+    uhi_domains: list[list[float]] = []
     for k, ti in enumerate(frame_idx):
         src = da.isel(time=ti).values.astype("float32")
         dst = np.full((dh, dw), np.nan, "float32")
@@ -266,8 +313,18 @@ def build(nc_path: Path, city_id: str, cfg: dict, out_root: Path):
                   dst_transform=dst_transform, dst_crs=DST_CRS,
                   resampling=Resampling.bilinear,
                   src_nodata=np.nan, dst_nodata=np.nan)
-        Image.fromarray(colorize(dst, lo, hi, lut), "RGBA").save(
+        Image.fromarray(colorize(dst, lo, hi, lut, eq), "RGBA").save(
             out_dir / f"frame_{k:03d}.png", optimize=True)
+
+        fin = dst[np.isfinite(dst)]
+        if fin.size:
+            u_lo = float(fin.min())
+            u_hi = max(float(fin.max()), u_lo + UHI_MIN_SPAN_C)
+        else:
+            u_lo, u_hi = 0.0, UHI_MIN_SPAN_C
+        uhi_domains.append([round(u_lo, 2), round(u_hi, 2)])
+        Image.fromarray(colorize(dst, u_lo, u_hi, reds_lut), "RGBA").save(
+            out_dir / f"frame_uhi_{k:03d}.png", optimize=True)
 
     # ---- values.bin — the shown window, NATIVE grid (no resampling) -----
     # one float32 per pixel per shown hour, so the hover readout is the exact
@@ -352,6 +409,22 @@ def build(nc_path: Path, city_id: str, cfg: dict, out_root: Path):
         "overlay_bounds_wgs84": [round(v, 6) for v in overlay_bounds],
         "value_domain_c": [round(lo, 2), round(hi, 2)],
         "value_domain_source": dom_src,
+        "layers": {
+            "absolute": {
+                "file": "frame_{k:03d}.png",
+                "domain_c": [round(lo, 2), round(hi, 2)],
+                "domain_source": dom_src,
+                "ramp": "turbo_remap",
+                "equalised": eq is not None and not np.allclose(eq[0], eq[1]),
+            },
+            "uhi": {
+                "file": "frame_uhi_{k:03d}.png",
+                "ramp": "reds",
+                "min_span_c": UHI_MIN_SPAN_C,
+                "rescale": "per_frame: coldest pixel -> 0, warmest -> 1",
+                "per_frame_domain_c": uhi_domains,   # one [lo,hi] per shown hour
+            },
+        },
         "value_grid": {"file": "values.bin", "width": gw, "height": gh,
                        "n_hours": v_hours, "index": "frame", "dtype": "float32",
                        "bounds_wgs84": [round(v, 6) for v in bbox_wgs84]},

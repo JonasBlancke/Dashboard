@@ -678,10 +678,18 @@
     const FC = {
       index: "/data/forecast/manifest.json",
       meta: (c) => `/data/forecast/${c}/latest/meta.json`,
-      frame: (c, i) => `/data/forecast/${c}/latest/frame_${String(i).padStart(3, "0")}.png`,
+      frame: (c, i, mode) => `/data/forecast/${c}/latest/` +
+        (mode === "uhi" ? "frame_uhi_" : "frame_") + String(i).padStart(3, "0") + ".png",
       values: (c) => `/data/forecast/${c}/latest/values.bin`,
       asset: (c, f) => `/data/forecast/${c}/latest/${f}`,
     };
+    // MapLibre `image` sources need an absolute URL. FC.* return site-root paths
+    // ("/data/…" in source; the deploy step makes them relative for the Pages
+    // subpath). baseHref() gives the matching prefix (with trailing slash) in
+    // both, so `baseHref() + FC.x().replace(/^\//,"")` resolves either way.
+    const baseHref = () =>
+      document.baseURI.replace(/[#?].*$/, "").replace(/[^/]*$/, "");
+    const abs = (p) => baseHref() + String(p).replace(/^\//, "");
     // Google "turbo", remapped: small blue band at the cold end, orange→red
     // fills the top of the bar. Kept in sync with pipeline/build_forecast.py.
     const RAMP = [
@@ -697,10 +705,19 @@
       return stops.map(([t, c]) => `rgb(${c.join(",")}) ${(t * 100).toFixed(0)}%`).join(", ");
     }
 
+    // ColorBrewer "Reds" 9-class — the per-hour "Heat contrast" layer. Kept in
+    // sync with pipeline/build_forecast.py (REDS). Coldest pixel of the hour is
+    // near-white, warmest is deep red.
+    const REDS = [
+      [0.000, [255, 245, 240]], [0.125, [254, 224, 210]], [0.250, [252, 187, 161]],
+      [0.375, [252, 146, 114]], [0.500, [251, 106, 74]],  [0.625, [239, 59, 44]],
+      [0.750, [203, 24, 29]],   [0.875, [165, 15, 21]],   [1.000, [103, 0, 13]],
+    ];
+
     const S = {
       started: false, map: null, city: null, meta: null,
       frame: 0, playing: false, timer: null, values: null,
-      frameMean: null, uhi: null, cities: [],
+      frameMean: null, uhi: null, cities: [], mode: "absolute",
       layers: { forecast: true, basemap: true, buildings: false, trees: false, water: false },
       // point selector
       picking: false, marker: null, adv: { lngLat: null, indoor: 24, goal: "cool", series: null },
@@ -728,6 +745,9 @@
         if (c.id === "fcPickBtn") return;
         c.addEventListener("click", () => toggleLayer(c.dataset.layer));
       });
+      const fcMode = g("fcMode");
+      if (fcMode) fcMode.querySelectorAll(".fl-chip").forEach((c) =>
+        c.addEventListener("click", () => setMode(c.dataset.mode)));
       // point selector
       g("fcPickBtn").addEventListener("click", togglePick);
       g("fcAdvisorClose").addEventListener("click", clearPoint);
@@ -767,11 +787,15 @@
       S.v = "?v=" + encodeURIComponent(m.run_time_utc || m.forecast_issue_time_utc || "0");
 
       g("fcTitle").textContent = m.display_name;
-      renderBar(m.value_domain_c);
-      const bn = g("fcBarNote");
-      if (bn) bn.textContent = m.value_domain_source === "registry"
-        ? "Pinned scale — comparable across runs."
-        : `Auto scale for this run (${m.value_domain_c[0]}–${m.value_domain_c[1]} °C) — same across all ${m.n_frames} h.`;
+      S.frame = 0;
+      // per-run layer descriptors (fallback for pre-"layers" meta.json)
+      S.mL = m.layers || {
+        absolute: { domain_c: m.value_domain_c, domain_source: m.value_domain_source, equalised: false },
+        uhi: null,
+      };
+      if (!S.mL.uhi && S.mode === "uhi") S.mode = "absolute";
+      syncModeChips();
+      updateBar();
       renderBanner(m);
       renderCaveats(m.caveats);
 
@@ -835,7 +859,7 @@
       map.on("load", () => {
         // forecast temperature raster
         map.addSource(OV, { type: "image",
-          url: location.origin + FC.frame(S.city, S.frame) + S.v, coordinates: box });
+          url: abs(FC.frame(S.city, S.frame, S.mode)) + S.v, coordinates: box });
         map.addLayer({ id: OV, type: "raster", source: OV,
           paint: { "raster-opacity": 0.86, "raster-resampling": "linear" } });
         // context overlays — static, above the forecast. z-order low→high:
@@ -845,7 +869,7 @@
           if (!ctx[key]) continue;
           const id = "ctx-" + key;
           map.addSource(id, { type: "image",
-            url: location.origin + FC.asset(S.city, ctx[key].file) + S.v, coordinates: box });
+            url: abs(FC.asset(S.city, ctx[key].file)) + S.v, coordinates: box });
           map.addLayer({ id, type: "raster", source: id,
             layout: { visibility: S.layers[key] ? "visible" : "none" },
             paint: { "raster-opacity": key === "trees" ? 0.72
@@ -901,13 +925,63 @@
       applyLayers();
     }
 
+    // ---- display mode: "absolute" (fixed °C, equalised ramp) vs
+    //      "uhi" (per-hour rescale, Reds — coldest pixel now = white) --------
+    function syncModeChips() {
+      const box = g("fcMode");
+      if (!box) return;
+      const hasUhi = !!(S.mL && S.mL.uhi);
+      box.querySelectorAll(".fl-chip").forEach((c) => {
+        const on = c.dataset.mode === S.mode;
+        c.classList.toggle("is-on", on);
+        if (c.dataset.mode === "uhi") c.disabled = !hasUhi, c.style.opacity = hasUhi ? "" : ".4";
+      });
+    }
+    function setMode(mode) {
+      if (mode === S.mode || (mode === "uhi" && !(S.mL && S.mL.uhi))) return;
+      S.mode = mode;
+      syncModeChips();
+      preloadFrames(S.city, S.meta.n_frames);
+      updateBar();
+      // swap the overlay image to this mode's frame
+      const [w, s, e, n] = S.meta.overlay_bounds_wgs84;
+      const src = S.map && S.map.getSource(OV);
+      if (src) src.updateImage({
+        url: abs(FC.frame(S.city, S.frame, S.mode)) + S.v,
+        coordinates: [[w, n], [e, n], [e, s], [w, s]],
+      });
+    }
+
+    // ---- colour bar — depends on mode (+ current frame in UHI mode) --------
+    function updateBar() {
+      const bn = g("fcBarNote");
+      if (S.mode === "uhi") {
+        const d = (S.mL.uhi.per_frame_domain_c || [])[S.frame] || [0, S.mL.uhi.min_span_c || 2];
+        g("fcBar").innerHTML = `
+          <div class="hb-bar" style="background:linear-gradient(90deg,${rampCSS(REDS)})"></div>
+          <div class="hb-ticks"><span>${d[0].toFixed(1)}°</span>` +
+          `<span>${((d[0] + d[1]) / 2).toFixed(1)}°</span><span>${d[1].toFixed(1)}°C</span></div>`;
+        if (bn) bn.textContent =
+          `Heat contrast — rescaled every hour: coldest point now = white, ` +
+          `warmest = deep red (min ${S.mL.uhi.min_span_c} °C span). Shows the ` +
+          `urban-heat pattern, not absolute temperature.`;
+      } else {
+        const dom = S.mL.absolute.domain_c;
+        renderBar(dom);
+        if (bn) bn.textContent = (S.mL.absolute.domain_source === "registry"
+          ? "Pinned scale — comparable across runs."
+          : `Auto scale for this run (${dom[0]}–${dom[1]} °C) — same across all ${S.meta.n_frames} h.`) +
+          (S.mL.absolute.equalised ? " Non-linear ramp: more colour where most pixels sit." : "");
+      }
+    }
+
     // simple in-memory frame cache so the scrubber is smooth
     const cache = new Map();
     function preloadFrames(cid, n) {
       cache.clear();
       for (let i = 0; i < n; i++) {
         const im = new Image();
-        im.src = FC.frame(cid, i);
+        im.src = FC.frame(cid, i, S.mode);
         cache.set(i, im);
       }
     }
@@ -931,10 +1005,11 @@
       const [w, s, e, n] = S.meta.overlay_bounds_wgs84;
       const src = S.map && S.map.getSource(OV);
       if (src) src.updateImage({
-        url: location.origin + FC.frame(S.city, S.frame) + S.v,
+        url: abs(FC.frame(S.city, S.frame, S.mode)) + S.v,
         coordinates: [[w, n], [e, n], [e, s], [w, s]],
       });
-      if (S.adv.series) renderAdvisor();   // move the "now" line / re-verdict
+      if (S.mode === "uhi") updateBar();    // per-hour scale changes each frame
+      if (S.adv.series) renderAdvisor();    // move the "now" line / re-verdict
     }
 
     function togglePlay() { S.playing ? stop() : play(); }

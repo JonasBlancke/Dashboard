@@ -417,10 +417,12 @@ input[type="range"]::-webkit-slider-thumb {
 .fs-label { font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-2); }
 .fs-value { font-family: var(--mono); font-size: 19px; font-weight: 700; color: var(--text-0); }
 .fs-item + .fs-item { border-top: 1px solid var(--stroke); padding-top: 7px; }
-.fc-layers {
+.fc-layers, .fc-mode {
   border-radius: var(--radius-sm); padding: 8px; min-width: 150px;
   display: flex; flex-direction: column; gap: 4px;
 }
+.fc-mode { gap: 2px; }
+.fc-mode .fl-chip[disabled] { cursor: default; }
 .fl-chip {
   border: 1px solid transparent; background: transparent; color: var(--text-2);
   font: inherit; font-size: 11px; font-weight: 600; cursor: pointer;
