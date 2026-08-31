@@ -717,8 +717,8 @@
     const S = {
       started: false, map: null, city: null, meta: null,
       frame: 0, playing: false, timer: null, values: null,
-      frameMean: null, uhi: null, cities: [], mode: "uhi",   // default: per-hour heat contrast
-      layers: { forecast: true, basemap: true, buildings: false, trees: false, water: false },
+      frameMean: null, uhi: null, cities: [], mode: "absolute",
+      layers: { forecast: true, basemap: true, buildings: true, trees: false, water: true },
       // point selector
       picking: false, marker: null, adv: { lngLat: null, indoor: 24, goal: "cool", series: null },
     };
