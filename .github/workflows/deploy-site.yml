@@ -1,18 +1,22 @@
 name: deploy-site
 
-# Publish the static dashboard to GitHub Pages. It is already static (Flask only
-# serves it in dev). We ship frontend/ + the committed data/forecast/ build, plus
-# data/epw/ and data/story/ unpacked from the `site-assets` Release (too bulky for
-# git — see scripts/stage_site_assets.sh), then rewrite the few absolute asset
-# paths to relative so it works under a project subpath
-# (jonasblancke.github.io/Dashboard).
+# Publish ONLY the Live Forecast tab to GitHub Pages.
+#
+# The repo's frontend/ is the full 3-tab dashboard (UTCI / EPW / Live Forecast) —
+# that stays intact for local dev via Flask. For Pages we:
+#   1. ship frontend/ + the committed data/forecast/ build
+#      (data/epw/ and data/story/ are NOT fetched — those tabs are hidden)
+#   2. rewrite absolute /css /js /vendor /data paths to relative so it works
+#      under the jonasblancke.github.io/Dashboard subpath
+#   3. inject a snippet that hides the UTCI + EPW tabs and force-opens Live
+#      Forecast, and drop epw.js
 
 on:
   push:
     branches: [main]
     paths:
       - "frontend/**"
-      - "data/**"
+      - "data/forecast/**"
   workflow_run:
     workflows: ["daily-forecast"]
     types: [completed]
@@ -36,40 +40,62 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch bulky tab assets from the site-assets Release
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Assemble Live-Forecast-only site
         run: |
           set -euo pipefail
-          mkdir -p data
-          tmp="$(mktemp -d)"
-          # tolerate a missing release / missing asset — the corresponding tab
-          # is just empty on the published site.
-          gh release download site-assets -R "${{ github.repository }}" -D "$tmp" \
-            -p 'epw.tar.gz' -p 'story.tar.gz' || echo "site-assets release not found"
-          [ -f "$tmp/epw.tar.gz" ]   && tar -C data -xzf "$tmp/epw.tar.gz"   && echo "epw/ unpacked"   || echo "no epw.tar.gz — EPW tab will be empty"
-          [ -f "$tmp/story.tar.gz" ] && tar -C data -xzf "$tmp/story.tar.gz" && echo "story/ unpacked" || echo "no story.tar.gz — Heat Stress tab will be empty"
-
-      - name: Assemble site
-        run: |
-          set -euo pipefail
-          mkdir -p _site
+          rm -rf _site && mkdir -p _site
           cp -r frontend/* _site/
+          rm -f _site/js/epw.js
           mkdir -p _site/data
-          cp -r data/story    _site/data/ 2>/dev/null || true
-          cp -r data/epw      _site/data/ 2>/dev/null || true
-          cp -r data/forecast _site/data/ 2>/dev/null || true
-          # drop the CI-only staging dir if it slipped in
+          cp -r data/forecast _site/data/
           rm -rf _site/data/forecast/_spatial
 
-          # absolute /data/... and /vendor/... -> relative, so the site works
-          # from any base path. The frontend has no path segments (query + hash
-          # routing only), so data/... always resolves against the site root.
-          # Matches the delimiter right before the slash: " ' ` ( = , or space.
-          grep -rlZ -E $'["\x27`(=, ]/(data|vendor)/' _site --include='*.html' --include='*.js' --include='*.css' \
-            | xargs -0 -r sed -i -E 's#([]"'"'"'`(=, ])/(data|vendor)/#\1\2/#g'
+          # app.js's init() bails before wiring the tab handlers if the story
+          # index 404s — ship an empty one so it runs through and the Live
+          # Forecast tab works. (UTCI/EPW panels are hidden below anyway.)
+          mkdir -p _site/data/story/heatstress
+          echo '{"cities":[]}' > _site/data/story/heatstress/index.json
+
+          # absolute "/css/…" "/js/…" "/vendor/…" "/data/…" -> relative. The
+          # frontend routes with query + hash only (no path segments), so a
+          # relative ref always resolves against the site root. The char class
+          # matches the delimiter right before the slash: " ' ` ( = , or space.
+          grep -rlZ -E $'["\x27`(=, ]/(css|js|vendor|data)/' _site \
+               --include='*.html' --include='*.js' --include='*.css' \
+            | xargs -0 -r sed -i -E 's#([]"'"'"'`(=, ])/(css|js|vendor|data)/#\1\2/#g'
           echo "remaining absolute refs (should be none):"
-          ! grep -rn -E $'[]"\x27`(=, ]/(data|vendor)/' _site --include='*.html' --include='*.js' --include='*.css'
+          ! grep -rn -E $'[]"\x27`(=, ]/(css|js|vendor|data)/' _site \
+               --include='*.html' --include='*.js' --include='*.css'
+
+          # forecast-only: drop the epw.js tag, hide the other two tabs/panels,
+          # retitle, and force the Live Forecast tab open on load.
+          sed -i -E '/<script[^>]*\bsrc="js\/epw\.js"/d' _site/index.html
+          sed -i 's#<title>[^<]*</title>#<title>Live Urban Temperature Forecast</title>#' _site/index.html
+          python - <<'PY'
+          import pathlib, re
+          p = pathlib.Path("_site/index.html")
+          html = p.read_text(encoding="utf-8")
+          inject = """
+            <style>
+              #tabs .tab[data-tab="utci"], #tabs .tab[data-tab="epw"],
+              .panel[data-panel="utci"], .panel[data-panel="epw"] { display: none !important; }
+            </style>
+            <script>
+              addEventListener("DOMContentLoaded", function () {
+                if (!location.hash.includes("tab=live")) {
+                  location.hash = "tab=live" + location.hash.replace(/^#/, "&").replace(/^&$/, "");
+                }
+                var t = setInterval(function () {
+                  var b = document.querySelector('#tabs .tab[data-tab="live"]');
+                  if (b) { clearInterval(t); if (!b.classList.contains("is-active")) b.click(); }
+                }, 50);
+              });
+            </script>
+          """
+          html = html.replace("</head>", inject + "</head>", 1)
+          p.write_text(html, encoding="utf-8")
+          print("injected forecast-only snippet")
+          PY
 
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
