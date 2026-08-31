@@ -98,7 +98,8 @@ jobs:
           pip install -r requirements.txt   # flask rasterio geopandas numpy pillow pyproj xarray netCDF4 pyyaml
           # forecast-stage deps not in requirements.txt. V29 drops ERA5zdiff, so
           # no GDAL/momepy/exactextract and none of ML-UrbanHeat/Resources/.
-          pip install "xgboost<3" joblib scikit-learn pvlib ephem pandas requests
+          # matplotlib is only used for the stage's preview PNG.
+          pip install "xgboost<3" joblib scikit-learn pvlib ephem pandas requests matplotlib
 
       - name: Fetch V29 assets from the Release
         env:
