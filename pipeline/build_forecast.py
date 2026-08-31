@@ -47,10 +47,11 @@ MIN_DOMAIN_SPAN = 5.0     # colour scale is auto from the data, but never < this
 # 3857 raster whose grid convergence leaves a small rotation vs the basemap.
 DST_CRS = "EPSG:4326"
 
-# Google "turbo" colormap, REMAPPED so the bar reads:
-#   0.00–0.18  turbo's blue band, compressed (small cold portion)
-#   0.18–0.55  turbo's green→yellow, roughly linear
-#   0.55–1.00  turbo's orange→red, stretched (large hot portion)
+# Google "turbo" colormap, REMAPPED + a dark-purple hot tail so the bar reads:
+#   0.00–0.15  turbo's blue band, compressed (small cold portion)
+#   0.15–0.42  turbo's green→yellow, TIGHTENED (was 0.18–0.55)
+#   0.42–0.88  turbo's yellow→orange→red, stretched (large hot portion)
+#   0.88–1.00  turbo's deep red → #4A0D3F magenta-purple (hottest)
 # Kept in sync with the frontend (Forecast.RAMP in js/app.js).
 _TURBO = [
     (0.00, (48, 18, 59)), (0.07, (70, 68, 176)), (0.14, (65, 122, 224)),
@@ -59,8 +60,11 @@ _TURBO = [
     (0.64, (237, 216, 51)), (0.71, (253, 182, 47)), (0.79, (253, 136, 34)),
     (0.86, (241, 92, 22)), (0.93, (214, 55, 12)), (1.00, (150, 22, 2)),
 ]
-# (bar position, turbo position)  — piecewise-linear remap, interpolated between.
-_REMAP = [(0.00, 0.00), (0.18, 0.24), (0.55, 0.55), (1.00, 1.00)]
+# (bar position, turbo position) — piecewise-linear remap. Green/yellow now
+# spans 0.15–0.42 of the bar (was 0.18–0.55); everything above is hot colour.
+_REMAP = [(0.00, 0.00), (0.15, 0.24), (0.42, 0.55), (0.88, 1.00)]
+_PURPLE = (74, 13, 63)          # #4A0D3F — appended above bar pos 0.88
+_HOT_TAIL_FROM = 0.88
 
 
 def _sample_turbo(u: float):
@@ -80,7 +84,17 @@ def _remap(x: float) -> float:
     return _REMAP[-1][1]
 
 
-RAMP = [(x, _sample_turbo(_remap(x))) for x in [i / 20 for i in range(21)]]
+def _bar_colour(x: float):
+    """x in [0,1] along the bar -> RGB. Below _HOT_TAIL_FROM: remapped turbo.
+    Above: linear fade from turbo's end colour to _PURPLE."""
+    if x <= _HOT_TAIL_FROM:
+        return _sample_turbo(_remap(x))
+    end = _sample_turbo(1.0)
+    f = (x - _HOT_TAIL_FROM) / (1.0 - _HOT_TAIL_FROM)
+    return tuple(round(end[k] + (_PURPLE[k] - end[k]) * f) for k in range(3))
+
+
+RAMP = [(x, _bar_colour(x)) for x in [i / 20 for i in range(21)]]
 
 # ColorBrewer "Reds" 9-class — the UHI (per-hour, rescaled) layer. Coldest pixel
 # of the hour reads near-white, warmest reads deep red. Kept in sync with the

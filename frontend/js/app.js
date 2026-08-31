@@ -690,16 +690,16 @@
     const baseHref = () =>
       document.baseURI.replace(/[#?].*$/, "").replace(/[^/]*$/, "");
     const abs = (p) => baseHref() + String(p).replace(/^\//, "");
-    // Google "turbo", remapped: small blue band at the cold end, orange→red
-    // fills the top of the bar. Kept in sync with pipeline/build_forecast.py.
+    // Turbo, remapped (tight green/yellow) + a deep-red -> #4A0D3F purple hot
+    // tail. Generated to match pipeline/build_forecast.py's RAMP — keep in sync.
     const RAMP = [
-      [0.00, [48, 18, 59]], [0.05, [69, 66, 170]], [0.10, [65, 117, 219]],
-      [0.15, [57, 163, 230]], [0.20, [48, 197, 210]], [0.25, [45, 218, 187]],
-      [0.30, [47, 232, 160]], [0.35, [65, 243, 131]], [0.40, [96, 252, 98]],
-      [0.45, [129, 253, 75]], [0.50, [161, 251, 56]], [0.55, [189, 244, 48]],
-      [0.60, [217, 230, 47]], [0.65, [239, 211, 50]], [0.70, [251, 187, 48]],
-      [0.75, [253, 159, 40]], [0.80, [251, 130, 32]], [0.85, [243, 98, 24]],
-      [0.90, [226, 71, 16]], [0.95, [196, 46, 9]], [1.00, [150, 22, 2]],
+      [0.00, [48, 18, 59]],   [0.05, [69, 76, 183]],   [0.10, [62, 136, 226]],
+      [0.15, [51, 188, 217]], [0.20, [45, 217, 188]],  [0.25, [48, 237, 151]],
+      [0.30, [87, 249, 108]], [0.35, [132, 253, 74]],  [0.40, [174, 248, 53]],
+      [0.45, [207, 237, 45]], [0.50, [231, 220, 50]],  [0.55, [245, 198, 49]],
+      [0.60, [253, 173, 44]], [0.65, [253, 145, 36]],  [0.70, [247, 115, 28]],
+      [0.75, [236, 85, 20]],  [0.80, [217, 59, 13]],   [0.85, [177, 36, 6]],
+      [0.90, [137, 20, 12]],  [0.95, [106, 17, 38]],   [1.00, [74, 13, 63]],
     ];
     function rampCSS(stops) {
       return stops.map(([t, c]) => `rgb(${c.join(",")}) ${(t * 100).toFixed(0)}%`).join(", ");
@@ -717,7 +717,7 @@
     const S = {
       started: false, map: null, city: null, meta: null,
       frame: 0, playing: false, timer: null, values: null,
-      frameMean: null, uhi: null, cities: [], mode: "absolute",
+      frameMean: null, uhi: null, cities: [], mode: "uhi",   // default: per-hour heat contrast
       layers: { forecast: true, basemap: true, buildings: false, trees: false, water: false },
       // point selector
       picking: false, marker: null, adv: { lngLat: null, indoor: 24, goal: "cool", series: null },
