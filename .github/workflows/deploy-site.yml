@@ -67,6 +67,14 @@ jobs:
           ! grep -rn -E $'[]"\x27`(=, ]/(css|js|vendor|data)/' _site \
                --include='*.html' --include='*.js' --include='*.css'
 
+          # MapLibre image sources need an absolute URL — app.js builds them as
+          # `location.origin + "/data/..."`. After the rewrite above that path is
+          # now relative ("data/..."), so the concat is broken. Swap the base for
+          # the current directory URL (".../Dashboard/" on Pages, ".../" at a
+          # domain root) so "base + data/..." resolves under the subpath.
+          sed -i -E 's#location\.origin \+ #document.baseURI.replace(/[^/]*$/, "") + #g' _site/js/app.js
+          grep -n 'location\.origin\|baseURI' _site/js/app.js || true
+
           # forecast-only: drop the epw.js tag, hide the other two tabs/panels,
           # retitle, and force the Live Forecast tab open on load.
           sed -i -E '/<script[^>]*\bsrc="js\/epw\.js"/d' _site/index.html
