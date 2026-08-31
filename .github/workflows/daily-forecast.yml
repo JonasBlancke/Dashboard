@@ -1,0 +1,178 @@
+name: daily-forecast
+
+# Refresh the Live Forecast tab once per day for every enabled city.
+#   1. checkout this repo + a sparse checkout of b-kode/ML-UrbanHeat
+#      (only workflow/ forecast/ preprocessing/ — never its cities/ or models/)
+#   2. pull the heavy V29 artefacts from this repo's `v29-assets` Release
+#      (model + spatial TIFs + config) — none of it lives in git
+#   3. run pipeline/run_city_forecast.py  (fresh ECMWF-IFS via Open-Meteo,
+#      no key; Earth Engine skipped via the cached MERIT_HEIGHT_M)
+#   4. rotate  latest/ -> previous/  (so at most two forecasts on disk) and
+#      commit data/forecast/<city>/{latest,previous}/**
+#
+# One-time setup (see README "Live Forecast — GitHub Actions"):
+#   - `bash scripts/stage_v29_assets.sh` to create the v29-assets Release
+#   - repo secret ML_URBANHEAT_TOKEN: a token with read access to
+#     b-kode/ML-UrbanHeat (this repo's GITHUB_TOKEN cannot reach it)
+#   - Settings -> Pages -> Source: GitHub Actions
+
+on:
+  schedule:
+    - cron: "0 6 * * *"          # 06:00 UTC — after the ECMWF 00Z run lands on Open-Meteo
+  workflow_dispatch:
+    inputs:
+      city:  { description: "city id (default: all enabled)", required: false }
+      date:  { description: "forecast start date YYYY-MM-DD", required: false }
+
+concurrency:
+  group: daily-forecast
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  ML_REF: main                   # branch/tag/SHA of b-kode/ML-UrbanHeat to check out
+  RELEASE_TAG: v29-assets
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      cities: ${{ steps.pick.outputs.cities }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: pick
+        run: |
+          pip install --quiet pyyaml
+          python - <<'PY'
+          import json, os, yaml
+          reg = yaml.safe_load(open("cities.forecast.yaml"))
+          want = os.environ.get("INPUT_CITY", "").strip()
+          ids = [k for k, v in reg["cities"].items()
+                 if v.get("enabled", True) and (not want or k == want)]
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write("cities=" + json.dumps(ids) + "\n")
+          print("cities:", ids)
+          PY
+        env:
+          INPUT_CITY: ${{ github.event.inputs.city }}
+
+  forecast:
+    needs: matrix
+    if: needs.matrix.outputs.cities != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1            # stagger Open-Meteo requests + serialise the commits
+      fail-fast: false
+      matrix:
+        city: ${{ fromJson(needs.matrix.outputs.cities) }}
+    steps:
+      - name: Checkout dashboard
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # full history — the commit step does git pull --rebase
+
+      - name: Checkout ML-UrbanHeat (sparse — forecast code only)
+        uses: actions/checkout@v4
+        with:
+          repository: b-kode/ML-UrbanHeat
+          ref: ${{ env.ML_REF }}
+          token: ${{ secrets.ML_URBANHEAT_TOKEN }}
+          path: pipeline/ml_urbanheat
+          sparse-checkout: |
+            workflow
+            forecast
+            preprocessing
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install -U pip
+          pip install -r requirements.txt   # flask rasterio geopandas numpy pillow pyproj xarray netCDF4 pyyaml
+          # forecast-stage deps not in requirements.txt. V29 drops ERA5zdiff, so
+          # no GDAL/momepy/exactextract and none of ML-UrbanHeat/Resources/.
+          pip install "xgboost<3" joblib scikit-learn pvlib ephem pandas requests
+
+      - name: Fetch V29 assets from the Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          ml=pipeline/ml_urbanheat
+          mkdir -p data/forecast/_spatial/Ghent \
+                   "$ml/models/V29_forecast" "$ml/configs"
+          tmp="$(mktemp -d)"
+          gh release download "$RELEASE_TAG" -R "${{ github.repository }}" -D "$tmp" \
+            -p 'spatial-ghent-V29_forecast.tar.gz' -p 'xgb-V29_forecast.joblib' -p 'config-V29_forecast.yaml'
+          tar -C data/forecast/_spatial/Ghent -xzf "$tmp/spatial-ghent-V29_forecast.tar.gz"
+          cp "$tmp/xgb-V29_forecast.joblib" "$ml/models/V29_forecast/XGB_model.joblib"
+          cp "$tmp/config-V29_forecast.yaml" "$ml/configs/V29_forecast.yaml"
+          echo "spatial files: $(ls data/forecast/_spatial/Ghent | wc -l)"
+
+      - name: Resolve cached MERIT height (Earth Engine is not available in CI)
+        env:
+          CITY: ${{ matrix.city }}
+        run: |
+          python - <<'PY' >> "$GITHUB_ENV"
+          import os, sys, yaml
+          reg = yaml.safe_load(open("cities.forecast.yaml"))
+          mh = reg["cities"][os.environ["CITY"]].get("merit_height_m")
+          if mh is None:
+              sys.exit(f"merit_height_m not cached for {os.environ['CITY']} in "
+                       "cities.forecast.yaml — CI cannot fall back to Earth Engine")
+          print(f"MERIT_HEIGHT_M={float(mh)!r}")
+          PY
+
+      - name: Run city forecast
+        env:
+          ML_URBANHEAT_DIR: ${{ github.workspace }}/pipeline/ml_urbanheat
+          SPATIAL_TIFS_DIR: ${{ github.workspace }}/data/forecast/_spatial
+        run: |
+          set -euo pipefail
+          d="data/forecast/${{ matrix.city }}"
+          # snapshot yesterday's issue time, and stage yesterday's latest/ as
+          # previous/ up front — a failed run just means we don't commit below.
+          if [ -f "$d/latest/meta.json" ]; then
+            python -c "import json;print(json.load(open('$d/latest/meta.json'))['forecast_issue_time_utc'])" > "$RUNNER_TEMP/prev_issue.txt"
+            rm -rf "$d/previous"; cp -r "$d/latest" "$d/previous"
+          else
+            echo "none" > "$RUNNER_TEMP/prev_issue.txt"
+          fi
+          python pipeline/run_city_forecast.py \
+            --city "${{ matrix.city }}" \
+            --ml-urbanheat "$ML_URBANHEAT_DIR" \
+            ${{ github.event.inputs.date && format('--date {0}', github.event.inputs.date) || '' }}
+
+      - name: Commit (only if a newer forecast landed)
+        run: |
+          set -euo pipefail
+          d="data/forecast/${{ matrix.city }}"
+          new_issue=$(python -c "import json;print(json.load(open('$d/latest/meta.json'))['forecast_issue_time_utc'])")
+          if [ "$new_issue" = "$(cat "$RUNNER_TEMP/prev_issue.txt")" ]; then
+            echo "issue time unchanged ($new_issue) — nothing to commit"; exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "$d/latest" "$d/previous" data/forecast/manifest.json 2>/dev/null || true
+          if git diff --cached --quiet; then echo "no file changes"; exit 0; fi
+          git commit -m "chore(data): ${{ matrix.city }} forecast ${new_issue%%T*}"
+          for attempt in 1 2 3; do
+            git pull --rebase --autostash && git push && exit 0
+            echo "push attempt $attempt failed — retrying"; sleep 5
+          done
+          exit 1
+
+      - name: Debug artefacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: forecast-${{ matrix.city }}
+          path: |
+            data/forecast/${{ matrix.city }}/latest/meta.json
+            data/forecast/${{ matrix.city }}/latest/preview.png
+          if-no-files-found: ignore

@@ -1,0 +1,78 @@
+name: deploy-site
+
+# Publish the static dashboard to GitHub Pages. It is already static (Flask only
+# serves it in dev). We ship frontend/ + the committed data/forecast/ build, plus
+# data/epw/ and data/story/ unpacked from the `site-assets` Release (too bulky for
+# git — see scripts/stage_site_assets.sh), then rewrite the few absolute asset
+# paths to relative so it works under a project subpath
+# (jonasblancke.github.io/Dashboard).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - "data/**"
+  workflow_run:
+    workflows: ["daily-forecast"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch bulky tab assets from the site-assets Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p data
+          tmp="$(mktemp -d)"
+          # tolerate a missing release / missing asset — the corresponding tab
+          # is just empty on the published site.
+          gh release download site-assets -R "${{ github.repository }}" -D "$tmp" \
+            -p 'epw.tar.gz' -p 'story.tar.gz' || echo "site-assets release not found"
+          [ -f "$tmp/epw.tar.gz" ]   && tar -C data -xzf "$tmp/epw.tar.gz"   && echo "epw/ unpacked"   || echo "no epw.tar.gz — EPW tab will be empty"
+          [ -f "$tmp/story.tar.gz" ] && tar -C data -xzf "$tmp/story.tar.gz" && echo "story/ unpacked" || echo "no story.tar.gz — Heat Stress tab will be empty"
+
+      - name: Assemble site
+        run: |
+          set -euo pipefail
+          mkdir -p _site
+          cp -r frontend/* _site/
+          mkdir -p _site/data
+          cp -r data/story    _site/data/ 2>/dev/null || true
+          cp -r data/epw      _site/data/ 2>/dev/null || true
+          cp -r data/forecast _site/data/ 2>/dev/null || true
+          # drop the CI-only staging dir if it slipped in
+          rm -rf _site/data/forecast/_spatial
+
+          # absolute /data/... and /vendor/... -> relative, so the site works
+          # from any base path. The frontend has no path segments (query + hash
+          # routing only), so data/... always resolves against the site root.
+          # Matches the delimiter right before the slash: " ' ` ( = , or space.
+          grep -rlZ -E $'["\x27`(=, ]/(data|vendor)/' _site --include='*.html' --include='*.js' --include='*.css' \
+            | xargs -0 -r sed -i -E 's#([]"'"'"'`(=, ])/(data|vendor)/#\1\2/#g'
+          echo "remaining absolute refs (should be none):"
+          ! grep -rn -E $'[]"\x27`(=, ]/(data|vendor)/' _site --include='*.html' --include='*.js' --include='*.css'
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: _site }
+      - id: deploy
+        uses: actions/deploy-pages@v4

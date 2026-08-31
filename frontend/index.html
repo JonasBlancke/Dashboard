@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Urban Climate Dashboard — Heat Stress</title>
+  <link rel="stylesheet" href="/vendor/maplibre-gl.css" />
+  <link rel="stylesheet" href="/css/app.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- ───────────────────────── Sidebar ───────────────────────── -->
+    <aside class="sidebar">
+      <header class="brand">
+        <div class="brand-mark">◑</div>
+        <div class="brand-text">
+          <span class="brand-title">URBAN CLIMATE</span>
+          <span class="brand-sub">Heat Stress Intelligence</span>
+        </div>
+      </header>
+
+      <nav class="tabs" id="tabs">
+        <button class="tab is-active" data-tab="utci">UTCI 2m</button>
+        <button class="tab" data-tab="epw">EPW Files</button>
+        <button class="tab" data-tab="live">Live Forecast</button>
+      </nav>
+
+      <section class="panel" data-panel="utci">
+        <div class="field">
+          <label>City</label>
+          <div class="select-wrap"><select id="citySelect"></select></div>
+        </div>
+
+        <div class="field">
+          <label>Scenario horizon</label>
+          <div class="segmented" id="scenarioSeg"></div>
+          <p class="hint" id="scenarioEpoch"></p>
+          <div class="scen-warn" id="scenWarn" hidden></div>
+        </div>
+
+        <div class="field">
+          <label>Neighbourhoods</label>
+          <nav class="hood-nav" id="hoodNav"></nav>
+          <p class="hint">Outlined hexes on the map are clickable — pick one to
+             open its 2&nbsp;m detail.</p>
+        </div>
+
+        <div class="field">
+          <label>Colour scales</label>
+          <div class="scale-block">
+            <span class="scale-head">City hexes · typical-day mean UTCI
+              <span class="lbl-note">follows the horizon</span></span>
+            <div class="hexbar" id="hexbar"></div>
+          </div>
+          <div class="scale-block">
+            <span class="scale-head">Zoom detail · hot-day 2&nbsp;m UTCI
+              <span class="lbl-note">per neighbourhood</span></span>
+            <div class="hexbar" id="zoomBar"></div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Layers</label>
+          <button class="toggle-row" id="utciLayerBtn" aria-pressed="true">
+            <span class="tr-sw"></span>UTCI colour (city&nbsp;&amp; detail)
+          </button>
+          <button class="toggle-row" id="cityBasemapBtn" aria-pressed="false">
+            <span class="tr-sw"></span>OpenStreetMap basemap
+          </button>
+        </div>
+
+        <p class="hint src-note">
+          City map: HeatScan AOI hex zonal stats — <b>typical-day</b> mean UTCI,
+          recomputed per horizon (Present / 2050 / 2090) + OSM through-roads.
+          Detail: real 2&nbsp;m SOLWEIG <b>hot-day</b> UTCI (°C), windowed from
+          the source rasters and clipped to the hexagon. Turn off the UTCI
+          colour to orient on the streets/basemap.
+        </p>
+      </section>
+
+      <section class="panel is-hidden" data-panel="epw">
+        <div class="field">
+          <label>Location</label>
+          <nav class="hood-nav" id="epwCityNav"></nav>
+          <p class="hint">Click a bubble on the map, or pick here.</p>
+        </div>
+
+        <!-- primary picker (File A) -->
+        <div id="epwPickerA" class="epw-pick" data-slot="A" hidden></div>
+
+        <div class="field" id="epwCompareWrap" hidden>
+          <button class="toggle-row" id="epwCompareBtn" aria-pressed="false">
+            <span class="tr-sw"></span>Compare with a second file
+          </button>
+        </div>
+
+        <!-- second picker (File B) — same options, appears below on toggle -->
+        <div id="epwPickerB" class="epw-pick epw-pick-b" data-slot="B" hidden></div>
+
+        <p class="hint src-note">
+          B-Kode Minority-Report EPW set. Historical &amp; future typical /
+          design / extreme years, base and LCZ-morphed. Infographics computed
+          from the file's own hourly series.
+        </p>
+      </section>
+
+      <!-- picker template cloned into #epwPickerA / #epwPickerB -->
+      <template id="epwPickTpl">
+        <div class="field">
+          <label class="ep-slot-label"></label>
+          <div class="segmented" data-role="branch">
+            <button data-b="historical" class="is-active">Historical</button>
+            <button data-b="future">Future</button>
+          </div>
+        </div>
+        <div data-branch="historical">
+          <div class="field">
+            <label>Historical type</label>
+            <div class="select-wrap"><select data-role="histType"></select></div>
+            <p class="hint" data-role="histNote"></p>
+          </div>
+          <div class="field" data-role="amyYearWrap" hidden>
+            <label>Year</label>
+            <div class="select-wrap"><select data-role="amyYear"></select></div>
+          </div>
+        </div>
+        <div data-branch="future" hidden>
+          <div class="field">
+            <label>SSP scenario</label>
+            <div class="select-wrap"><select data-role="ssp"></select></div>
+          </div>
+          <div class="field">
+            <label>Time period</label>
+            <div class="select-wrap"><select data-role="period"></select></div>
+          </div>
+          <div class="field">
+            <label>Year type</label>
+            <div class="select-wrap"><select data-role="yearType"></select></div>
+          </div>
+          <div class="field" data-role="metricWrap" hidden>
+            <label>Extreme metric
+              <button class="info-btn" data-role="metricInfo" aria-label="About this metric">i</button>
+            </label>
+            <div class="select-wrap"><select data-role="metric"></select></div>
+            <div class="info-pop" data-role="metricPop" hidden></div>
+            <label class="sub-label">Return period</label>
+            <div class="select-wrap"><select data-role="return"></select></div>
+            <p class="hint" data-role="windowNote"></p>
+          </div>
+        </div>
+        <div class="field">
+          <label>Urban context</label>
+          <div class="segmented" data-role="variant"></div>
+          <p class="hint">LCZ = Local Climate Zone (UHI-morphed).</p>
+        </div>
+        <a class="epw-dl" data-role="download" href="#" hidden>⬇ Download .epw</a>
+      </template>
+      <section class="panel is-hidden" data-panel="live">
+        <div class="field">
+          <label>City</label>
+          <div class="select-wrap"><select id="fcCitySelect"></select></div>
+        </div>
+
+        <div class="field" id="fcBannerWrap">
+          <label>Forecast run</label>
+          <div class="fc-banner" id="fcBanner">—</div>
+        </div>
+
+        <div class="field">
+          <label>Colour — air temperature</label>
+          <div class="hexbar" id="fcBar"></div>
+          <p class="hint" id="fcBarNote">Auto scale for this run — same across all 72 h.</p>
+        </div>
+
+        <div class="field" id="fcCaveatsWrap" hidden>
+          <label>Caveats</label>
+          <ul class="fc-caveats" id="fcCaveats"></ul>
+        </div>
+
+        <p class="hint src-note">
+          Downscaled ECMWF-IFS forecast (Open-Meteo) → XGBoost urban-heat model
+          (<code>V27_forecast</code>), ~50&nbsp;m. Hourly map for the coming
+          72&nbsp;h; hover any pixel for its full-horizon series.
+        </p>
+      </section>
+
+      <footer class="side-foot"><span id="dataFoot">—</span></footer>
+    </aside>
+
+    <!-- ─────────────────────── Heat Stress stage ─────────────────────── -->
+    <main class="stage" id="stage">
+      <section class="city-view">
+        <div class="city-map" id="cityMap"></div>
+        <div class="city-card glass">
+          <span class="cc-kicker">City overview</span>
+          <h2 class="cc-title" id="cityTitle">—</h2>
+          <p class="cc-body">Hexes shaded by typical-day mean UTCI for the
+             selected horizon. The three outlined hexes have full 2&nbsp;m
+             SOLWEIG detail — click one.</p>
+        </div>
+        <div class="map-hint" id="mapHint">Hover a hex for its value · click an outlined hex to zoom in</div>
+      </section>
+
+      <!-- Inline detail, revealed on hex click -->
+      <section class="detail" id="detail" hidden>
+        <header class="detail-head">
+          <div>
+            <span class="dh-kicker" id="dhKicker">Neighbourhood</span>
+            <h3 class="dh-title" id="dhTitle">—</h3>
+            <p class="dh-body" id="dhBody">—</p>
+          </div>
+          <button class="detail-close" id="detailClose" aria-label="Close detail">✕ Close</button>
+        </header>
+        <div class="scen-warn detail-warn" id="detailWarn" hidden></div>
+        <figure class="detail-map-wrap">
+          <figcaption>
+            Real 2&nbsp;m UTCI · <span id="dmScen">Present</span>
+            <span class="dm-hint" id="dmHint">pan / zoom · hover for °C</span>
+          </figcaption>
+          <div class="detail-map" id="detailMap">
+            <div class="detail-readout" id="detailReadout"></div>
+          </div>
+          <div class="detail-bar" id="detailBar"></div>
+        </figure>
+      </section>
+    </main>
+
+    <!-- connector lines: selected hex on the city map -> the detail map -->
+    <svg class="hex-link" id="hexLink" aria-hidden="true"></svg>
+
+    <!-- ─────────────────────── EPW Files stage ─────────────────────── -->
+    <main class="stage stage-hidden" id="epwStage">
+      <section class="city-view">
+        <div class="city-map" id="epwMap"></div>
+        <div class="city-card glass">
+          <span class="cc-kicker">EPW future scenarios</span>
+          <h2 class="cc-title">Weather file library</h2>
+          <p class="cc-body">Three published cities. Click a bubble, then build
+             a selection in the panel to see how the climate shifts.</p>
+        </div>
+        <div class="map-hint" id="epwMapHint">Click a bubble to start</div>
+      </section>
+
+      <!-- Inline analysis: full-width stacked infographics -->
+      <section class="detail" id="epwDetail" hidden>
+        <header class="detail-head">
+          <div>
+            <span class="dh-kicker" id="epwDhKicker">—</span>
+            <h3 class="dh-title" id="epwDhTitle">—</h3>
+            <p class="dh-body" id="epwDhBody">—</p>
+          </div>
+          <button class="detail-close" id="epwDetailClose" aria-label="Close">✕ Close</button>
+        </header>
+
+        <div class="epw-legend" id="epwLegend" hidden>
+          <span class="el-swatch el-a"></span><span id="epwLegA">A</span>
+          <span class="el-swatch el-b"></span><span id="epwLegB">B</span>
+        </div>
+
+        <!-- variable picker (drives heatmap + seasonal + stats) -->
+        <div class="epw-varbar">
+          <label>Variable</label>
+          <div class="segmented small" id="epwVarSeg"></div>
+        </div>
+
+        <!-- 1 — tall full-width heatmap(s), hour on Y -->
+        <figure class="epw-card">
+          <figcaption>Annual hourly field · <span id="epwHeatVar">—</span>
+            <span class="fc-sub">day of year → · hour of day ↓</span></figcaption>
+          <div class="epw-heatstack" id="epwHeatStack"></div>
+          <div class="epw-bar" id="epwHeatBar"></div>
+          <div class="epw-bar-ticks" id="epwHeatTicks"></div>
+        </figure>
+
+        <!-- 2 — seasonal (left) + key statistics (right) -->
+        <div class="epw-analysis-grid">
+          <figure class="epw-card">
+            <figcaption>Seasonal cycle · monthly p10–p90 &amp; median of
+              <span id="epwSeasonVar">—</span></figcaption>
+            <svg class="epw-monthly" id="epwMonthly" viewBox="0 0 640 300"></svg>
+          </figure>
+          <figure class="epw-card">
+            <figcaption>Key statistics <span id="epwStatsRef"></span></figcaption>
+            <div class="epw-stats" id="epwStats"></div>
+          </figure>
+        </div>
+      </section>
+
+      <!-- request-your-EPW call to action -->
+      <div class="epw-cta">
+        <button class="epw-cta-btn" id="epwRequestBtn">
+          <span class="cta-lead">Need a different city or scenario?</span>
+          <span class="cta-main">Request your custom EPW files →</span>
+        </button>
+      </div>
+    </main>
+
+    <!-- ─────────────── EPW request form (modal) ─────────────── -->
+    <div class="epw-modal" id="epwModal" hidden>
+      <div class="epw-modal-card glass" role="dialog" aria-modal="true" aria-labelledby="epwModalTitle">
+        <header class="epw-modal-head">
+          <h3 id="epwModalTitle">Request a custom EPW set</h3>
+          <button class="detail-close" id="epwModalClose" aria-label="Close">✕</button>
+        </header>
+        <div class="epw-modal-body" id="epwModalBody">
+          <div class="field">
+            <label>Project / client name</label>
+            <input type="text" id="rqName" value="MyProject_01" />
+          </div>
+
+          <div class="field">
+            <label>Location</label>
+            <div class="rq-range">
+              <label class="rq-inline">Lat
+                <input type="number" id="rqLat" step="0.0001" value="0" /></label>
+              <label class="rq-inline">Lon
+                <input type="number" id="rqLon" step="0.0001" value="0" /></label>
+            </div>
+            <p class="hint">Prefilled from the selected city — edit for any point on Earth.</p>
+          </div>
+
+          <div class="field">
+            <label>SSP scenarios</label>
+            <div class="chip-multi" id="rqSsp">
+              <button data-v="ssp126">SSP1-2.6</button>
+              <button data-v="ssp245" class="is-on">SSP2-4.5</button>
+              <button data-v="ssp370">SSP3-7.0</button>
+              <button data-v="ssp585" class="is-on">SSP5-8.5</button>
+            </div>
+            <label class="sub-label">Future period</label>
+            <div class="rq-range">
+              <input type="number" id="rqFStart" value="2031" min="2015" max="2100" />
+              <span>–</span>
+              <input type="number" id="rqFEnd" value="2050" min="2015" max="2100" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Historical EPW</label>
+            <div class="chip-multi" id="rqHist">
+              <button data-v="AMY">AMY (actual year)</button>
+              <button data-v="TMY">TMY (typical)</button>
+            </div>
+            <div class="rq-sub" id="rqAmyWrap" hidden>
+              <label class="sub-label">AMY year</label>
+              <div class="select-wrap"><select id="rqAmyYear"></select></div>
+            </div>
+            <p class="hint" id="rqTmyNote" hidden>TMY uses the fixed 1991–2020 aggregation window.</p>
+          </div>
+
+          <div class="field">
+            <label>Future EPW</label>
+            <div class="chip-multi" id="rqFuture">
+              <button data-v="TMY">TMY (typical)</button>
+              <button data-v="XMY">XMY (extreme)</button>
+            </div>
+            <div class="rq-sub" id="rqXmyWrap" hidden>
+              <label class="sub-label">Return period (years)</label>
+              <input type="number" id="rqReturn" value="20" min="1" />
+              <label class="sub-label">Metric</label>
+              <div class="select-wrap">
+                <select id="rqMetric"><option>TX7d</option><option>TX5d</option>
+                  <option>TX3d</option><option>HWMId</option><option>EHF</option>
+                  <option>Hotspell</option></select>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Urban context</label>
+            <label class="toggle-row" id="rqUhiRow" aria-pressed="true">
+              <span class="tr-sw"></span>Apply Urban Heat Island (UHI) correction
+            </label>
+            <div class="rq-sub" id="rqLczWrap">
+              <label class="sub-label">Local Climate Zone (LCZ)</label>
+              <div class="select-wrap">
+                <select id="rqLcz">
+                  <option value="1">1 – Compact High-Rise</option>
+                  <option value="2">2 – Compact Mid-Rise</option>
+                  <option value="3" selected>3 – Compact Low-Rise</option>
+                  <option value="4">4 – Open High-Rise</option>
+                  <option value="5">5 – Open Mid-Rise</option>
+                  <option value="6">6 – Open Low-Rise</option>
+                  <option value="7">7 – Lightweight Low-Rise</option>
+                  <option value="8">8 – Large Low-Rise</option>
+                  <option value="9">9 – Sparsely Built</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Notes / special requests</label>
+            <textarea id="rqNotes" rows="3" placeholder="Delivery notes, questions, extra context…"></textarea>
+          </div>
+        </div>
+        <footer class="epw-modal-foot">
+          <span class="hint" id="rqCoord">—</span>
+          <button class="epw-dl" id="rqDownload">⬇ Download config YAML</button>
+        </footer>
+      </div>
+    </div>
+
+    <!-- ─────────────────────── Live Forecast stage ─────────────────────── -->
+    <main class="stage stage-hidden" id="fcStage">
+      <section class="city-view">
+        <div class="city-map" id="fcMap"></div>
+
+        <div class="city-card glass">
+          <span class="cc-kicker">Live urban-heat forecast</span>
+          <h2 class="cc-title" id="fcTitle">—</h2>
+          <p class="cc-body">Hourly ~50&nbsp;m air-temperature forecast. Scrub
+             through the coming days; hover for the value at a point.</p>
+        </div>
+
+        <div class="fc-topright">
+          <div class="fc-stats glass">
+            <div class="fs-item">
+              <span class="fs-label">City mean</span>
+              <span class="fs-value" id="fcMeanVal">—</span>
+            </div>
+            <div class="fs-item" id="fcUhiItem" hidden>
+              <span class="fs-label">UHI · urban − rural</span>
+              <span class="fs-value" id="fcUhiVal">—</span>
+            </div>
+          </div>
+          <div class="fc-layers glass" id="fcLayers">
+            <button class="fl-chip is-on" data-layer="forecast"><span class="fl-sw" style="background:linear-gradient(90deg,#30123b,#4542aa,#41a3e6,#2ec5d2,#2fe8a0,#60fc62,#a1fb38,#d9e62f,#fbbb30,#fb8220,#e24710,#961602)"></span>Forecast</button>
+            <button class="fl-chip is-on" data-layer="basemap"><span class="fl-sw fl-map"></span>Basemap</button>
+            <button class="fl-chip" data-layer="buildings"><span class="fl-sw" style="background:#0e0e10"></span>Buildings</button>
+            <button class="fl-chip" data-layer="trees"><span class="fl-sw" style="background:#14461f"></span>Trees</button>
+            <button class="fl-chip" data-layer="water"><span class="fl-sw" style="background:#0d2a5c"></span>Water</button>
+          </div>
+          <button class="fl-chip fc-pick-btn" id="fcPickBtn"><span class="fl-sw" style="background:#4cc9f0"></span>Point selector</button>
+        </div>
+
+        <div class="fc-readout glass is-hidden" id="fcReadout">
+          <span class="fr-metric">At point</span>
+          <span class="fr-value" id="fcReadoutVal">—</span>
+          <span class="fr-coord" id="fcReadoutCoord">—</span>
+        </div>
+
+        <div class="fc-scrubber glass" id="fcScrubber">
+          <button class="fc-play" id="fcPlay" aria-label="Play / pause">▶</button>
+          <div class="fc-time">
+            <span class="fc-time-main" id="fcTimeMain">—</span>
+            <span class="fc-time-sub" id="fcTimeSub">—</span>
+          </div>
+          <input type="range" id="fcSlider" min="0" max="0" value="0" />
+        </div>
+
+        <!-- Point selector — appears below the scrubber when a point is picked -->
+        <section class="fc-advisor glass" id="fcAdvisor" hidden>
+          <header class="fa-head">
+            <div>
+              <span class="fa-kicker">Point selector · natural ventilation</span>
+              <h3 class="fa-title" id="faTitle">—</h3>
+            </div>
+            <button class="fa-close" id="fcAdvisorClose" aria-label="Remove point">✕</button>
+          </header>
+          <div class="fa-controls">
+            <label class="fa-ctl">
+              <span>Indoor temp (°C)</span>
+              <input type="number" id="faIndoor" value="24" min="5" max="40" step="0.5" />
+            </label>
+            <div class="fa-ctl">
+              <span>Goal</span>
+              <div class="segmented small" id="faGoalSeg">
+                <button data-goal="cool" class="is-active">Cooling</button>
+                <button data-goal="warm">Warming</button>
+              </div>
+            </div>
+          </div>
+          <p class="fa-verdict" id="faVerdict">—</p>
+          <div class="fa-chartwrap">
+            <svg class="fa-chart" id="faChart"></svg>
+            <div class="fa-legend">
+              <span><i class="fa-sw fa-open"></i> windows open</span>
+              <span><i class="fa-sw fa-shut"></i> windows closed</span>
+              <span><i class="fa-sw fa-indoor"></i> indoor temp</span>
+            </div>
+          </div>
+          <p class="fa-note">Ventilation heuristic only — no thermal mass, solar gain
+             or humidity. Constant indoor temperature is assumed. Same forecast
+             pixel as the hover readout (~50&nbsp;m).</p>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <script src="/vendor/maplibre-gl.js"></script>
+  <script src="/js/app.js"></script>
+  <script src="/js/epw.js"></script>
+</body>
+</html>

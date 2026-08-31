@@ -1,0 +1,25 @@
+# Live Forecast city registry.
+# Adding a city = one block here + staging its ML-UrbanHeat spatial TIFs and
+# caching its MERIT-DEM centre height (merit_height_m). No code changes.
+
+cities:
+  ghent:
+    ml_urbanheat_city_name: Ghent      # key in ML-UrbanHeat/city_id_converter.json
+    display_name: Ghent
+    country: Belgium
+    timezone: Europe/Brussels
+    center: { lat: 51.054, lon: 3.717 }
+    has_local_observations: true
+    value_domain_c: null              # auto from the shown frames (min span 5 °C); set [lo, hi] to pin
+    merit_height_m: 11.44935881561851  # cached — skips the Earth Engine lookup
+    # bf_uhi: <path>                   # BuildingFraction_*m raster for the UHI
+                                       # split; auto-found in the ML-UrbanHeat
+                                       # spatial dir if omitted (V29 = 1000m)
+    enabled: true
+
+defaults:
+  simulation_name: V29_forecast
+  config_path: configs/V29_forecast.yaml
+  forecast_days: 16                    # ECMWF-IFS horizon via Open-Meteo
+  warmup_hours: 24                     # matches the model's rolling windows — do not change
+  frame_hours: 72                      # hourly map PNGs for the coming N hours

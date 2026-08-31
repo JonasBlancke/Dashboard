@@ -1,0 +1,54 @@
+Act as a Senior Geospatial Solutions Architect and Front-End Engineer specializing in urban climate dashboards.
+
+CRITICAL DIRECTIVE ON WORKFLOW:
+Before generating code or writing full implementations, analyze my requirements. If any crucial technical details, data formats, or workflow preferences are ambiguous, ASK ME 3–5 TARGETED CLARIFYING QUESTIONS FIRST. Do not blindly implement what you think I want—verify my assumptions and ask for clarification whenever key design or architecture choices have multiple valid paths.
+
+---
+
+### GOAL & OVERVIEW
+I want to design a custom, production-grade urban climate dashboard with three core feature tabs:
+1. EPW Files Tab: Morphing/generating future extreme weather EPW files, visualizing seasonal/hourly shifts, and providing downloadable EPW files.
+2. Live Urban Temperature Forecasts Tab: Real-time high-resolution temperature forecasts mapped across urban heat island (UHI) zones.
+3. UTCI 2m Spatial Results Tab: High-resolution Universal Thermal Climate Index (UTCI) heat stress overlays with fine spatial granularity.
+
+CRITICAL UI REQUIREMENT: I explicitly want to avoid standard data-app layouts (e.g., default Streamlit, Gradio, or vanilla Folium wrappers) which look generic or unpolished. I need a modern, sleek, bespoke UI design (similar to professional tools like Mapbox Studio, Sentinel Hub, or Vercel-style dark-mode dashboards).
+
+Please generate a comprehensive, step-by-step Technical Implementation Architecture & UI Blueprint addressing the following:
+
+---
+
+### SECTION 1: Modern Tech Stack Selection
+Recommend an open-source, production-ready tech stack that separates the UI presentation from backend computation:
+- Frontend Framework & Component Library: Recommend a modern setup (e.g., Next.js / React, Tailwind CSS, Shadcn UI / Radix primitives).
+- High-Performance Map Engine: Contrast MapLibre GL JS vs Deck.gl vs Mapbox GL JS for handling dynamic raster overlays (UTCI) and vector heatmaps smoothly without WebGL memory leaks.
+- Backend / Processing API: A fast, lightweight API strategy (e.g., FastAPI / Python) for running climate calculations (pythermalcomfort, EPW parsing, climate morphing algorithms) and serving GeoJSON/MVT tiles.
+- Free Deployment Strategy: How to host both the UI and backend using free tiers (e.g., Vercel / Netlify for Next.js UI, Render / Hugging Face Spaces for FastAPI backend, GitHub for static file CDN).
+
+---
+
+### SECTION 2: UI/UX & Layout Specs
+Provide a detailed structural UI breakdown for a polished "Dark Mode / Modern Data-Dense" aesthetic:
+- Control Panel & Glassmorphism Sidebar: Layout for city selection, scenario toggles (e.g., SSP2-4.5 vs. SSP5-8.5), and metric switches.
+- Spatial Map Container: Floating map controls, layer opacity sliders, legend overlays, and hover tooltips for pixel-level thermal data.
+- Data Drawer / Analytics Panel: Split view combining synchronized 2D map views with dynamic charting libraries (Recharts or Chart.js) for diurnal cycles and temperature delta graphs.
+
+---
+
+### SECTION 3: Tab-by-Tab Technical Implementation
+1. EPW Future Scenario Tab:
+   - Data pipeline: Pre-generating vs. on-the-fly EPW morphing.
+   - Interactive visualizer: How to display diurnal temperature profiles and dry-bulb vs wet-bulb delta charts.
+   - File delivery: Client-side binary download setup.
+2. Live Urban Forecast Tab:
+   - Live API Integration: Fetching spatial grid points from Open-Meteo or NOAA APIs for free.
+   - Visualization: Rendering vector heat contours or interpolated canvas overlays with dynamic temporal sliders (24-hour animation).
+3. UTCI High-Resolution Heat Stress Tab:
+   - Pre-computed spatial tile strategy vs. browser-side canvas rendering for 2m spatial resolution.
+   - Thermal comfort scale color mapping (e.g., Moderate Heat Stress to Extreme Heat Stress) with interactive legend integration.
+
+---
+
+### SECTION 4: Embedding & Web Integration Strategy
+- Explain how to cleanly embed this custom React/Next.js application into an existing website (via responsive clean iframe embedding, web components, or single-page host routing) without styling conflicts or broken viewport sizing.
+
+Structure your response as an actionable, step-by-step developer roadmap, starting with your clarifying questions first.

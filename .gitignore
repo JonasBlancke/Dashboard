@@ -1,0 +1,34 @@
+# ── Data ─────────────────────────────────────────────────────────────────
+# Ignore everything under data/ by default, then re-include only the Live
+# Forecast build (small, changes daily). data/story/ (56 MB) and data/epw/
+# (34 MB, 2124 PNGs) stay out of git — they ride on GitHub Releases and are
+# unpacked by deploy-site.yml at publish time (scripts/stage_site_assets.sh).
+/data/**
+
+# Live Forecast — today's + yesterday's build per city, and the manifest.
+# daily-forecast.yml keeps at most those two per city; _spatial/ stays ignored.
+!/data/forecast/
+!/data/forecast/*/
+!/data/forecast/*/latest/
+!/data/forecast/*/latest/**
+!/data/forecast/*/previous/
+!/data/forecast/*/previous/**
+!/data/forecast/manifest.json
+
+# NOT committed, pulled from Releases:
+#   data/story/               -> site-assets Release  (Heat Stress tab)
+#   data/epw/                 -> site-assets Release  (EPW tab)
+#   data/forecast/_spatial/   -> v29-assets Release   (CI model inputs)
+
+# ── Python ───────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ── Scratch / editor / OS ───────────────────────────────────────────────
+scratch_*
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

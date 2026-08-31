@@ -1,0 +1,16 @@
+{
+  "generated_utc": "2026-08-28T08:44:50Z",
+  "cities": [
+    {
+      "id": "ghent",
+      "display_name": "Ghent",
+      "path": "ghent/latest",
+      "issue_time_utc": "2026-08-26T13:52:42Z",
+      "run_time_utc": "2026-08-28T08:44:50Z",
+      "n_hours": 361,
+      "n_frames": 72,
+      "timezone": "Europe/Brussels",
+      "has_local_observations": true
+    }
+  ]
+}
