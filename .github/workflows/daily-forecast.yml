@@ -84,6 +84,8 @@ jobs:
             workflow
             forecast
             preprocessing
+            city_id_converter.json
+            Resources/UCD_R2024A_R2019A_conversion_table_full_overlap.csv
           sparse-checkout-cone-mode: false
 
       - uses: actions/setup-python@v5
