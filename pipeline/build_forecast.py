@@ -163,6 +163,49 @@ def _epsg_from_crs_wkt(wkt: str) -> str:
     raise ValueError(f"cannot resolve EPSG from crs attr: {wkt[:80]}")
 
 
+def _fetch_context_series(lat: float, lon: float, times_utc: list[str],
+                          out_path: Path) -> bool:
+    """Small standalone Open-Meteo call for the map's wind arrows + precip chart.
+    Point forecast (no key), aligned to the frames' UTC hours. Independent of the
+    ML model fetch so ML-UrbanHeat stays untouched. Writes context_series.json:
+      {issue, hours:[iso…], wind_speed_ms:[…], wind_dir_deg:[…], precip_mm:[…]}
+    Returns False on any failure (the tab just skips those widgets)."""
+    try:
+        import requests
+        t0 = times_utc[0][:10]; t1 = times_utc[-1][:10]
+        r = requests.get("https://api.open-meteo.com/v1/forecast", timeout=30, params={
+            "latitude": round(lat, 4), "longitude": round(lon, 4),
+            "hourly": "wind_speed_10m,wind_direction_10m,precipitation",
+            "wind_speed_unit": "ms", "precipitation_unit": "mm",
+            "timezone": "UTC", "start_date": t0, "end_date": t1,
+            "models": "ecmwf_ifs025",
+        })
+        r.raise_for_status()
+        h = r.json()["hourly"]
+        idx = {t.replace("T", " ")[:16]: i for i, t in enumerate(h["time"])}
+        def col(name):
+            src = h.get(name, [])
+            out = []
+            for tu in times_utc:
+                i = idx.get(tu.replace("T", " ")[:16].replace("Z", ""))
+                out.append(None if i is None or src[i] is None else round(float(src[i]), 2))
+            return out
+        payload = {
+            "issue": times_utc[0],
+            "hours": times_utc,
+            "wind_speed_ms": col("wind_speed_10m"),
+            "wind_dir_deg": col("wind_direction_10m"),
+            "precip_mm": col("precipitation"),
+        }
+        out_path.write_text(json.dumps(payload), encoding="utf-8")
+        n_ok = sum(v is not None for v in payload["wind_speed_ms"])
+        print(f"  context series: {n_ok}/{len(times_utc)} h wind+precip -> {out_path.name}")
+        return True
+    except Exception as e:
+        print(f"  context series skipped ({e})")
+        return False
+
+
 def _write_aoi_geojson(mask: np.ndarray, transform, out_path: Path) -> bool:
     """Polygonise the boolean `mask` (True = inside the modelled area) on the
     given lng/lat `transform`, keep the largest ring, lightly simplify, and
@@ -474,6 +517,14 @@ def build(nc_path: Path, city_id: str, cfg: dict, out_root: Path):
                             "hour_local": loc.hour, "day": day_n})
     all_times = [_iso(t) for t in times]
 
+    # ---- context_series.json — wind + precip for the shown window ------
+    frame_utc = [ft["utc"] for ft in frame_times]
+    ctr = cfg.get("center") or {}
+    ctx_series = _fetch_context_series(
+        float(ctr.get("lat", (m_b + m_t) / 2)),
+        float(ctr.get("lon", (m_l + m_r) / 2)),
+        frame_utc, out_dir / "context_series.json")
+
     # ---- context overlays (buildings / trees / water) — static PNGs ----
     geo_bounds = (m_l, m_b, m_r, m_t)   # DST_CRS metres — same extent as frames
     ctx = {}
@@ -529,6 +580,7 @@ def build(nc_path: Path, city_id: str, cfg: dict, out_root: Path):
         "frames": frame_times,
         "all_times_utc": all_times,
         "aoi": {"file": "aoi.geojson"} if aoi_written else None,
+        "context_series": {"file": "context_series.json"} if ctx_series else None,
         "context": ctx,
         "uhi": uhi_block,
         "has_local_observations": bool(cfg.get("has_local_observations", False)),

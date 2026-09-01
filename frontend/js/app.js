@@ -813,9 +813,48 @@
                    bounds: vg.bounds_wgs84, data: new Float32Array(buf) };
       S.frameMean = computeFrameMeans(S.values);
 
+      // wind + precipitation context series (optional)
+      S.ctxSeries = null;
+      if (m.context_series && m.context_series.file) {
+        try { S.ctxSeries = await fetch(FC.asset(cid, m.context_series.file) + S.v).then((r) => r.json()); }
+        catch (e) { S.ctxSeries = null; }
+      }
+      g("fcWind").hidden = !(S.ctxSeries && S.ctxSeries.wind_speed_ms);
+      renderPrecip();
+
       buildMap(m);
       preloadFrames(cid, m.n_frames);
       setFrame(0);
+    }
+
+    // ---- precipitation forecast — static bar chart, drawn once per city ----
+    function renderPrecip() {
+      const fig = g("fcPrecip"), svg = g("fcPrecipSvg");
+      const p = S.ctxSeries && S.ctxSeries.precip_mm;
+      if (!p || !p.some((v) => v != null)) { fig.hidden = true; return; }
+      fig.hidden = false;
+      const n = p.length, W = 600, H = 64, padB = 12, padT = 4;
+      const max = Math.max(0.5, ...p.map((v) => v || 0));
+      const bw = W / n;
+      let bars = "";
+      for (let i = 0; i < n; i++) {
+        const v = p[i] || 0;
+        const h = v > 0 ? (v / max) * (H - padB - padT) : 1.5;
+        bars += `<rect class="fp-bar${v > 0 ? "" : " dry"}" x="${(i * bw).toFixed(1)}" ` +
+          `y="${(H - padB - h).toFixed(1)}" width="${Math.max(1, bw - 0.8).toFixed(1)}" height="${h.toFixed(1)}"/>`;
+      }
+      // day boundaries + labels from meta.frames
+      let ticks = `<line class="fp-axis" x1="0" y1="${H - padB}" x2="${W}" y2="${H - padB}"/>`;
+      const fr = S.meta.frames || [];
+      for (let i = 0; i < n; i++) {
+        if (i && fr[i] && fr[i - 1] && fr[i].local.slice(0, 10) !== fr[i - 1].local.slice(0, 10)) {
+          const x = (i * bw).toFixed(1);
+          ticks += `<line class="fp-axis" x1="${x}" y1="${padT}" x2="${x}" y2="${H - padB}" opacity="0.5"/>`;
+          ticks += `<text class="fp-tick" x="${(+x + 3)}" y="${H - 3}">${fr[i].local.slice(5, 10)}</text>`;
+        }
+      }
+      svg.innerHTML = ticks + bars + `<line class="fp-now" id="fpNow" x1="0" y1="${padT}" x2="0" y2="${H - padB}"/>`;
+      g("fcPrecip").dataset.max = max.toFixed(1);
     }
 
     // per-frame city-mean air temp (NaN-aware), from values.bin
@@ -1018,7 +1057,30 @@
         coordinates: [[w, n], [e, n], [e, s], [w, s]],
       });
       if (S.mode === "uhi") updateBar();    // per-hour scale changes each frame
+      updateContext(S.frame);
       if (S.adv.series) renderAdvisor();    // move the "now" line / re-verdict
+    }
+
+    const COMPASS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+                     "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+    function updateContext(i) {
+      const c = S.ctxSeries;
+      if (c && c.wind_speed_ms) {
+        const spd = c.wind_speed_ms[i], dir = c.wind_dir_deg[i];
+        g("fcWindVal").textContent = spd == null ? "—" : spd.toFixed(1);
+        if (dir != null) {
+          g("fcWindDir").textContent = COMPASS[Math.round(dir / 22.5) % 16];
+          // meteorological dir = where wind comes FROM; arrow points where it goes TO
+          g("fwArrow").setAttribute("transform", `rotate(${(dir + 180) % 360} 22 22)`);
+        }
+      }
+      const now = g("fpNow");
+      if (now && c && c.precip_mm) {
+        const n = c.precip_mm.length, x = ((i + 0.5) / n) * 600;
+        now.setAttribute("x1", x.toFixed(1)); now.setAttribute("x2", x.toFixed(1));
+        const v = c.precip_mm[i];
+        g("fcPrecipNow").textContent = v == null ? "—" : (v > 0 ? v.toFixed(1) + " mm/h" : "dry");
+      }
     }
 
     function togglePlay() { S.playing ? stop() : play(); }

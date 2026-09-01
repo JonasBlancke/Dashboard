@@ -444,13 +444,34 @@
           <span class="fr-coord" id="fcReadoutCoord">—</span>
         </div>
 
-        <div class="fc-scrubber glass" id="fcScrubber">
-          <button class="fc-play" id="fcPlay" aria-label="Play / pause">▶</button>
-          <div class="fc-time">
-            <span class="fc-time-main" id="fcTimeMain">—</span>
-            <span class="fc-time-sub" id="fcTimeSub">—</span>
+        <!-- wind — 10 m wind at the city centre for the current hour -->
+        <div class="fc-wind glass" id="fcWind" hidden>
+          <svg class="fw-rose" viewBox="0 0 44 44" aria-hidden="true">
+            <circle cx="22" cy="22" r="20" class="fw-ring" />
+            <g id="fwArrow" transform="rotate(0 22 22)">
+              <path d="M22 6 L27 24 L22 20 L17 24 Z" class="fw-arrow" />
+            </g>
+          </svg>
+          <div class="fw-read">
+            <span class="fw-val" id="fcWindVal">—</span>
+            <span class="fw-lbl">m/s · <span id="fcWindDir">—</span></span>
           </div>
-          <input type="range" id="fcSlider" min="0" max="0" value="0" />
+        </div>
+
+        <div class="fc-scrubber glass" id="fcScrubber">
+          <div class="fc-scrub-row">
+            <button class="fc-play" id="fcPlay" aria-label="Play / pause">▶</button>
+            <div class="fc-time">
+              <span class="fc-time-main" id="fcTimeMain">—</span>
+              <span class="fc-time-sub" id="fcTimeSub">—</span>
+            </div>
+            <input type="range" id="fcSlider" min="0" max="0" value="0" />
+          </div>
+          <!-- precipitation forecast — bar per hour, "now" marker -->
+          <figure class="fc-precip" id="fcPrecip" hidden>
+            <figcaption><span>Precipitation</span><span id="fcPrecipNow">—</span></figcaption>
+            <svg id="fcPrecipSvg" viewBox="0 0 600 64" preserveAspectRatio="none"></svg>
+          </figure>
         </div>
 
         <!-- Point selector — appears below the scrubber when a point is picked -->
