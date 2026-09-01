@@ -261,12 +261,27 @@ def build(nc_path: Path, city_id: str, cfg: dict, out_root: Path):
     src_crs = _epsg_from_crs_wkt(ds.attrs["crs"])
     gt = [float(v) for v in ds.attrs["GeoTransform"].split()]
     ny, nx = da.shape[1], da.shape[2]
-    # The GeoTransform is north-up (origin = top-left, dy < 0) but this NetCDF's
-    # `y` coordinate is ASCENDING — so array row 0 is the SOUTH edge. Flip to
-    # north-up so it matches src_transform (otherwise every frame is upside-down).
+    # Flip to north-up (array row 0 = north edge) so it matches src_transform.
     if "y" in da.coords and float(da.y.values[0]) < float(da.y.values[-1]):
         da = da.isel(y=slice(None, None, -1))
-    src_transform = from_origin(gt[0], gt[3], gt[1], -gt[5])
+
+    # Grid geometry: trust the x/y COORDINATE ARRAYS (pixel centres) over the
+    # GeoTransform attribute — some forecast NetCDFs carry a stale pre-clip GT
+    # that no longer matches the actual data window, which lands the overlay
+    # ~km off the basemap. Fall back to the GT only if coords are missing.
+    if "x" in da.coords and "y" in da.coords:
+        xs = np.asarray(da.x.values, dtype="float64")
+        ys = np.asarray(da.y.values, dtype="float64")          # now north->south
+        px = abs(xs[1] - xs[0]); py = abs(ys[1] - ys[0])
+        west = xs.min() - px / 2.0
+        north = ys.max() + py / 2.0
+        src_transform = from_origin(west, north, px, py)
+        if not math.isclose(west, gt[0], abs_tol=py) or not math.isclose(north, gt[3], abs_tol=py):
+            print(f"      note: GeoTransform origin ({gt[0]:.1f},{gt[3]:.1f}) != "
+                  f"coord extent ({west:.1f},{north:.1f}) — using coords")
+    else:
+        px, py = gt[1], -gt[5]
+        src_transform = from_origin(gt[0], gt[3], px, py)
 
     times = np.asarray(ds["time"].values).astype("datetime64[s]")
     n_all = len(times)
@@ -279,11 +294,10 @@ def build(nc_path: Path, city_id: str, cfg: dict, out_root: Path):
     frame_idx = list(range(i0, i1))
 
     # ---- destination lng/lat grid (shared by every frame) -----------------
-    # Source pixel-edge extent (GeoTransform origin is the top-left pixel EDGE).
-    src_l = gt[0]
-    src_t = gt[3]
-    src_r = src_l + gt[1] * nx
-    src_b = src_t + gt[5] * ny
+    # Source pixel-edge extent, straight from src_transform (coord-derived above).
+    src_l, src_t = src_transform.c, src_transform.f
+    src_r = src_l + src_transform.a * nx
+    src_b = src_t + src_transform.e * ny
     m_l, m_b, m_r, m_t = transform_bounds(src_crs, DST_CRS, src_l, src_b, src_r, src_t)
     overlay_bounds = [m_l, m_b, m_r, m_t]            # [w, s, e, n], EPSG:4326
     bbox_wgs84 = list(overlay_bounds)
