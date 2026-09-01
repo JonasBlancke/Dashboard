@@ -177,7 +177,10 @@ jobs:
           fi
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add "$d/latest" "$d/previous" data/forecast/manifest.json 2>/dev/null || true
+          # add only paths that exist — `previous/` is absent on a city's first run
+          for p in "$d/latest" "$d/previous" data/forecast/manifest.json; do
+            [ -e "$p" ] && git add -f "$p"
+          done
           if git diff --cached --quiet; then echo "no file changes"; exit 0; fi
           git commit -m "chore(data): ${{ matrix.city }} forecast ${new_issue%%T*}"
           for attempt in 1 2 3; do
