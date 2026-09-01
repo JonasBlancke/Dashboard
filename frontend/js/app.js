@@ -718,7 +718,7 @@
       started: false, map: null, city: null, meta: null,
       frame: 0, playing: false, timer: null, values: null,
       frameMean: null, uhi: null, cities: [], mode: "absolute",
-      layers: { forecast: true, basemap: true, buildings: true, trees: false, water: true },
+      layers: { forecast: true, basemap: true, buildings: true, trees: false, water: true, wind: true },
       // point selector
       picking: false, marker: null, adv: { lngLat: null, indoor: 24, goal: "cool", series: null },
     };
@@ -819,42 +819,74 @@
         try { S.ctxSeries = await fetch(FC.asset(cid, m.context_series.file) + S.v).then((r) => r.json()); }
         catch (e) { S.ctxSeries = null; }
       }
-      g("fcWind").hidden = !(S.ctxSeries && S.ctxSeries.wind_speed_ms);
+      const haveWind = !!(S.ctxSeries && S.ctxSeries.wind_speed_ms);
+      g("fcWind").hidden = !haveWind;
       renderPrecip();
 
       buildMap(m);
+      if (haveWind && S.layers.wind !== false) WindField.attach();
+      else WindField.stop();
       preloadFrames(cid, m.n_frames);
       setFrame(0);
     }
 
-    // ---- precipitation forecast — static bar chart, drawn once per city ----
+    // rain-rate categories (mm/h) — MetOffice-style bands
+    const RAIN_CATS = [
+      { max: 0.1,  name: "dry",         col: "#2a3038" },
+      { max: 0.5,  name: "drizzle",     col: "#6db8e8" },
+      { max: 2.5,  name: "light rain",  col: "#3a9bd8" },
+      { max: 7.6,  name: "moderate rain", col: "#2f6fb5" },
+      { max: 1e9,  name: "heavy rain",  col: "#7b4fc4" },
+    ];
+    const rainCat = (v) => RAIN_CATS.find((c) => (v || 0) < c.max);
+
+    // ---- precipitation forecast — categorised bar chart, drawn once per city ----
     function renderPrecip() {
       const fig = g("fcPrecip"), svg = g("fcPrecipSvg");
       const p = S.ctxSeries && S.ctxSeries.precip_mm;
       if (!p || !p.some((v) => v != null)) { fig.hidden = true; return; }
       fig.hidden = false;
-      const n = p.length, W = 600, H = 64, padB = 12, padT = 4;
-      const max = Math.max(0.5, ...p.map((v) => v || 0));
+      const n = p.length, W = 620, H = 120, padB = 16, padT = 6;
+      const peak = Math.max(...p.map((v) => v || 0));
+      // y-scale snaps to the smallest band ceiling that fits the peak
+      const yMax = [0.5, 2.5, 7.6, 15, 30, 60].find((m) => m >= peak) || Math.ceil(peak);
+      const plotH = H - padB - padT;
+      const y = (v) => H - padB - Math.min(1, v / yMax) * plotH;
       const bw = W / n;
+
+      // faint horizontal band guides (drizzle / light / moderate ceilings)
+      let guides = "";
+      for (const c of RAIN_CATS.slice(1, -1)) {
+        if (c.max <= yMax) {
+          const gy = y(c.max).toFixed(1);
+          guides += `<line class="fp-guide" x1="0" y1="${gy}" x2="${W}" y2="${gy}"/>`;
+        }
+      }
+      // bars, coloured by category
       let bars = "";
       for (let i = 0; i < n; i++) {
         const v = p[i] || 0;
-        const h = v > 0 ? (v / max) * (H - padB - padT) : 1.5;
-        bars += `<rect class="fp-bar${v > 0 ? "" : " dry"}" x="${(i * bw).toFixed(1)}" ` +
-          `y="${(H - padB - h).toFixed(1)}" width="${Math.max(1, bw - 0.8).toFixed(1)}" height="${h.toFixed(1)}"/>`;
+        const top = v > 0 ? y(v) : H - padB - 1.5;
+        bars += `<rect x="${(i * bw).toFixed(1)}" y="${top.toFixed(1)}" ` +
+          `width="${Math.max(1, bw - 0.7).toFixed(1)}" height="${(H - padB - top).toFixed(1)}" ` +
+          `fill="${rainCat(v).col}"/>`;
       }
-      // day boundaries + labels from meta.frames
+      // day boundaries + labels
       let ticks = `<line class="fp-axis" x1="0" y1="${H - padB}" x2="${W}" y2="${H - padB}"/>`;
       const fr = S.meta.frames || [];
       for (let i = 0; i < n; i++) {
         if (i && fr[i] && fr[i - 1] && fr[i].local.slice(0, 10) !== fr[i - 1].local.slice(0, 10)) {
           const x = (i * bw).toFixed(1);
           ticks += `<line class="fp-axis" x1="${x}" y1="${padT}" x2="${x}" y2="${H - padB}" opacity="0.5"/>`;
-          ticks += `<text class="fp-tick" x="${(+x + 3)}" y="${H - 3}">${fr[i].local.slice(5, 10)}</text>`;
+          ticks += `<text class="fp-tick" x="${(+x + 3)}" y="${H - 4}">${fr[i].local.slice(5, 10)}</text>`;
         }
       }
-      svg.innerHTML = ticks + bars + `<line class="fp-now" id="fpNow" x1="0" y1="${padT}" x2="0" y2="${H - padB}"/>`;
-      g("fcPrecip").dataset.max = max.toFixed(1);
+      svg.innerHTML = guides + ticks + bars +
+        `<line class="fp-now" id="fpNow" x1="0" y1="${padT}" x2="0" y2="${H - padB}"/>`;
+      // y-axis labels (0 / mid / max) beside the plot
+      const yl = g("fcPrecipY");
+      if (yl) yl.innerHTML = `<span>${yMax}</span><span>${(yMax / 2)}</span><span>0</span>`;
+      g("fcPrecip").dataset.ymax = yMax;
     }
 
     // per-frame city-mean air temp (NaN-aware), from values.bin
@@ -896,6 +928,7 @@
 
       const box = [[w, n], [e, n], [e, s], [w, s]];
       map.on("load", () => {
+        WindField.resize();          // canvas now has its final size
         // forecast temperature raster
         map.addSource(OV, { type: "image",
           url: abs(FC.frame(S.city, S.frame, S.mode)) + S.v, coordinates: box });
@@ -962,6 +995,10 @@
       try {
         if (m.getLayer(OV)) m.setPaintProperty(OV, "raster-opacity", S.layers.basemap ? 0.86 : 1);
       } catch (e) {}
+      if (S.ctxSeries && S.ctxSeries.wind_speed_ms) {
+        if (S.layers.wind === false) WindField.stop();
+        else WindField.attach();
+      }
       document.querySelectorAll("#fcLayers .fl-chip").forEach((c) => {
         if (c.id === "fcPickBtn") return;
         c.classList.toggle("is-on", !!S.layers[c.dataset.layer]);
@@ -1070,18 +1107,79 @@
         g("fcWindVal").textContent = spd == null ? "—" : spd.toFixed(1);
         if (dir != null) {
           g("fcWindDir").textContent = COMPASS[Math.round(dir / 22.5) % 16];
-          // meteorological dir = where wind comes FROM; arrow points where it goes TO
           g("fwArrow").setAttribute("transform", `rotate(${(dir + 180) % 360} 22 22)`);
         }
+        WindField.set(spd, dir);   // drive the animated arrows on the map
       }
       const now = g("fpNow");
       if (now && c && c.precip_mm) {
-        const n = c.precip_mm.length, x = ((i + 0.5) / n) * 600;
+        const W = 620, n = c.precip_mm.length, x = ((i + 0.5) / n) * W;
         now.setAttribute("x1", x.toFixed(1)); now.setAttribute("x2", x.toFixed(1));
         const v = c.precip_mm[i];
-        g("fcPrecipNow").textContent = v == null ? "—" : (v > 0 ? v.toFixed(1) + " mm/h" : "dry");
+        const cat = rainCat(v);
+        g("fcPrecipNow").textContent = v == null ? "—"
+          : (v > 0 ? `${v.toFixed(1)} mm/h · ${cat.name}` : "dry");
+        g("fcPrecipNow").style.color = v > 0 ? cat.col : "var(--text-2)";
       }
     }
+
+    // ---- animated wind field — a grid of drifting arrows over the map,
+    //      Windy-style. Single point vector, so the field is uniform. --------
+    const WindField = (() => {
+      let cv, ctx2, raf = 0, spd = 0, dir = 0, t = 0, dpr = 1;
+      const SPACING = 58;          // px between arrows
+      function resize() {
+        if (!cv) return;
+        dpr = Math.min(2, window.devicePixelRatio || 1);
+        const r = cv.getBoundingClientRect();
+        cv.width = r.width * dpr; cv.height = r.height * dpr;
+      }
+      function draw() {
+        if (!cv || !ctx2) return;
+        const W = cv.width, H = cv.height, s = SPACING * dpr;
+        ctx2.clearRect(0, 0, W, H);
+        if (spd <= 0.1) { raf = requestAnimationFrame(draw); return; }
+        // where the wind blows TO, in canvas coords (y down)
+        const rad = ((dir + 180) % 360) * Math.PI / 180;
+        const ux = Math.sin(rad), uy = -Math.cos(rad);
+        const len = (6 + Math.min(26, spd * 3.2)) * dpr;    // arrow length by speed
+        const drift = ((t * (0.4 + spd * 0.09)) % s);       // phase along the flow
+        ctx2.lineCap = "round";
+        ctx2.strokeStyle = "rgba(15,23,36,0.7)";
+        ctx2.lineWidth = 1.6 * dpr;
+        for (let gy = -s; gy < H + s; gy += s) {
+          for (let gx = -s; gx < W + s; gx += s) {
+            const cx = gx + ux * drift, cy = gy + uy * drift;
+            const bx = cx - ux * len / 2, by = cy - uy * len / 2;
+            const hx = cx + ux * len / 2, hy = cy + uy * len / 2;
+            ctx2.beginPath();
+            ctx2.moveTo(bx, by); ctx2.lineTo(hx, hy);
+            // arrowhead
+            const a = 0.42, hl = 4.5 * dpr;
+            ctx2.lineTo(hx - (ux * Math.cos(a) - uy * Math.sin(a)) * hl,
+                        hy - (uy * Math.cos(a) + ux * Math.sin(a)) * hl);
+            ctx2.moveTo(hx, hy);
+            ctx2.lineTo(hx - (ux * Math.cos(-a) - uy * Math.sin(-a)) * hl,
+                        hy - (uy * Math.cos(-a) + ux * Math.sin(-a)) * hl);
+            ctx2.stroke();
+          }
+        }
+        t += 1;
+        raf = requestAnimationFrame(draw);
+      }
+      return {
+        attach() {
+          cv = g("fcWindField"); if (!cv) return;
+          ctx2 = cv.getContext("2d");
+          cv.hidden = false; resize();
+          window.addEventListener("resize", resize);
+          if (!raf) raf = requestAnimationFrame(draw);
+        },
+        set(s, d) { if (s != null) spd = s; if (d != null) dir = d; },
+        stop() { if (raf) cancelAnimationFrame(raf); raf = 0; if (cv) cv.hidden = true; },
+        resize,
+      };
+    })();
 
     function togglePlay() { S.playing ? stop() : play(); }
     function play() {

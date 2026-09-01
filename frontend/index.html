@@ -405,6 +405,7 @@
     <main class="stage stage-hidden" id="fcStage">
       <section class="city-view">
         <div class="city-map" id="fcMap"></div>
+        <canvas class="fc-windfield" id="fcWindField" hidden></canvas>
 
         <div class="city-card glass">
           <span class="cc-kicker">Live urban-heat forecast</span>
@@ -430,6 +431,7 @@
             <button class="fl-chip is-on" data-layer="buildings"><span class="fl-sw" style="background:#0e0e10"></span>Buildings</button>
             <button class="fl-chip" data-layer="trees"><span class="fl-sw" style="background:#14461f"></span>Trees</button>
             <button class="fl-chip is-on" data-layer="water"><span class="fl-sw" style="background:#0d2a5c"></span>Water</button>
+            <button class="fl-chip is-on" data-layer="wind"><span class="fl-sw" style="background:#4cc9f0"></span>Wind flow</button>
           </div>
           <div class="fc-mode glass" id="fcMode">
             <button class="fl-chip is-on" data-mode="absolute"><span class="fl-sw" style="background:linear-gradient(90deg,#30123b,#3e88e2,#30ed97,#e7dc32,#fdad2c,#b12406,#4a0d3f)"></span>Absolute °C</button>
@@ -469,8 +471,14 @@
           </div>
           <!-- precipitation forecast — bar per hour, "now" marker -->
           <figure class="fc-precip" id="fcPrecip" hidden>
-            <figcaption><span>Precipitation</span><span id="fcPrecipNow">—</span></figcaption>
-            <svg id="fcPrecipSvg" viewBox="0 0 600 64" preserveAspectRatio="none"></svg>
+            <figcaption>
+              <span>Precipitation · mm/h</span>
+              <span id="fcPrecipNow">—</span>
+            </figcaption>
+            <div class="fp-plot">
+              <svg id="fcPrecipSvg" viewBox="0 0 620 120" preserveAspectRatio="none"></svg>
+              <div class="fp-yaxis" id="fcPrecipY"></div>
+            </div>
           </figure>
         </div>
 
