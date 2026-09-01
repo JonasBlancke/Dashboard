@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-09-01T14:52:47Z",
+  "generated_utc": "2026-09-01T15:10:55Z",
   "cities": [
     {
       "id": "ghent",
@@ -10,6 +10,17 @@
       "n_hours": 361,
       "n_frames": 72,
       "timezone": "Europe/Brussels",
+      "has_local_observations": true
+    },
+    {
+      "id": "patras",
+      "display_name": "Patras",
+      "path": "patras/latest",
+      "issue_time_utc": "2026-09-01T15:03:51Z",
+      "run_time_utc": "2026-09-01T15:10:55Z",
+      "n_hours": 361,
+      "n_frames": 72,
+      "timezone": "Europe/Athens",
       "has_local_observations": true
     }
   ]
