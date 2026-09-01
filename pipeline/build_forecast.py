@@ -96,13 +96,13 @@ def _bar_colour(x: float):
 
 RAMP = [(x, _bar_colour(x)) for x in [i / 20 for i in range(21)]]
 
-# ColorBrewer "Reds" 9-class — the UHI (per-hour, rescaled) layer. Coldest pixel
-# of the hour reads near-white, warmest reads deep red. Kept in sync with the
-# frontend (Forecast.REDS in js/app.js).
+# Blue -> Yellow -> Red diverging ramp — the UHI ("Heat contrast", per-hour
+# rescaled) layer. Coldest pixel of the hour = blue, mid = yellow, warmest = red.
+# Kept in sync with the frontend (Forecast.REDS in js/app.js).
 REDS = [
-    (0.000, (255, 245, 240)), (0.125, (254, 224, 210)), (0.250, (252, 187, 161)),
-    (0.375, (252, 146, 114)), (0.500, (251, 106, 74)),  (0.625, (239, 59, 44)),
-    (0.750, (203, 24, 29)),   (0.875, (165, 15, 21)),   (1.000, (103, 0, 13)),
+    (0.000, (49, 54, 149)),   (0.125, (69, 117, 180)),  (0.250, (116, 173, 209)),
+    (0.375, (171, 217, 233)), (0.500, (255, 255, 191)),  (0.625, (254, 224, 144)),
+    (0.750, (253, 174, 97)),  (0.875, (244, 109, 67)),   (1.000, (215, 48, 39)),
 ]
 
 UHI_MIN_SPAN_C = 2.0     # per-hour UHI scale is never narrower than this
@@ -163,6 +163,43 @@ def _epsg_from_crs_wkt(wkt: str) -> str:
     raise ValueError(f"cannot resolve EPSG from crs attr: {wkt[:80]}")
 
 
+def _write_aoi_geojson(mask: np.ndarray, transform, out_path: Path) -> bool:
+    """Polygonise the boolean `mask` (True = inside the modelled area) on the
+    given lng/lat `transform`, keep the largest ring, lightly simplify, and
+    write a single-Polygon FeatureCollection. Returns False if unavailable."""
+    if not mask.any():
+        return False
+    try:
+        from rasterio.features import shapes as _shapes
+        from shapely.geometry import shape as _shape, mapping as _mapping
+        from shapely.ops import unary_union
+    except Exception as e:  # pragma: no cover
+        print(f"      AOI outline skipped ({e})")
+        return False
+    # fill single-pixel holes so the outline is one clean loop
+    m = mask.copy()
+    m[1:-1, 1:-1] |= (mask[:-2, 1:-1] & mask[2:, 1:-1] &
+                      mask[1:-1, :-2] & mask[1:-1, 2:])
+    polys = [_shape(geom) for geom, val in
+             _shapes(m.astype("uint8"), mask=m, transform=transform) if val == 1]
+    if not polys:
+        return False
+    from shapely.geometry import Polygon as _Poly
+    geom = max(polys, key=lambda p: p.area)
+    geom = unary_union(geom).buffer(0)
+    if geom.geom_type == "MultiPolygon":
+        geom = max(geom.geoms, key=lambda p: p.area)
+    geom = _Poly(geom.exterior)                          # drop interior holes
+    # simplify hard — this is a boundary line, not a mask (~3 dest pixels)
+    tol = abs(transform.a) * 3.0
+    geom = geom.simplify(tol, preserve_topology=True)
+    fc = {"type": "FeatureCollection", "features": [
+        {"type": "Feature", "properties": {"name": "AOI"},
+         "geometry": _mapping(geom)}]}
+    out_path.write_text(json.dumps(fc), encoding="utf-8")
+    return True
+
+
 def _sha256(p: Path) -> str:
     h = hashlib.sha256()
     with open(p, "rb") as f:
@@ -185,10 +222,13 @@ CONTEXT_LAYERS = [
 CONTEXT_MAX = 1200   # context overlays render sharper than the temp frames
 
 
-def _render_context_overlay(tif_path, rgb, thr, geo_bounds, src_crs, out_png):
+def _render_context_overlay(tif_path, rgb, thr, geo_bounds, src_crs, out_png,
+                            aoi_mask=None):
     """One static PNG: pixels with fraction >= thr get `rgb`, rest transparent.
     Rendered on its own lng/lat grid (long edge <= CONTEXT_MAX) covering
-    the same extent as the forecast frames, so the mask stays crisp."""
+    the same extent as the forecast frames, so the mask stays crisp.
+    `aoi_mask` (any 2-D bool grid over the same bounds) clips the output to the
+    modelled area — resized to this grid with nearest sampling."""
     if not tif_path or not Path(tif_path).is_file():
         return None
     l, b, r, t = geo_bounds
@@ -211,6 +251,10 @@ def _render_context_overlay(tif_path, rgb, thr, geo_bounds, src_crs, out_png):
               dst_transform=dst_t, dst_crs=DST_CRS,
               resampling=Resampling.average, src_nodata=np.nan, dst_nodata=np.nan)
     mask = np.isfinite(dst) & (dst >= thr)
+    if aoi_mask is not None and aoi_mask.any():
+        clip = np.array(Image.fromarray(aoi_mask.astype("uint8") * 255)
+                        .resize((dw, dh), Image.NEAREST)) > 127
+        mask &= clip
     rgba = np.zeros((dh, dw, 4), np.uint8)
     rgba[mask] = (*rgb, 255)
     Image.fromarray(rgba, "RGBA").save(out_png, optimize=True)
@@ -353,6 +397,7 @@ def build(nc_path: Path, city_id: str, cfg: dict, out_root: Path):
     #   frame_uhi_NNN.png — per-hour rescaled: coldest pixel of that hour -> 0,
     #                       warmest -> 1 (min span UHI_MIN_SPAN_C), Reds ramp
     uhi_domains: list[list[float]] = []
+    aoi_mask = np.zeros((dh, dw), bool)          # union of finite pixels — the AOI
     for k, ti in enumerate(frame_idx):
         src = da.isel(time=ti).values.astype("float32")
         dst = np.full((dh, dw), np.nan, "float32")
@@ -360,6 +405,7 @@ def build(nc_path: Path, city_id: str, cfg: dict, out_root: Path):
                   dst_transform=dst_transform, dst_crs=DST_CRS,
                   resampling=Resampling.bilinear,
                   src_nodata=np.nan, dst_nodata=np.nan)
+        aoi_mask |= np.isfinite(dst)
         Image.fromarray(colorize(dst, lo, hi, lut, eq), "RGBA").save(
             out_dir / f"frame_{k:03d}.png", optimize=True)
 
@@ -372,6 +418,11 @@ def build(nc_path: Path, city_id: str, cfg: dict, out_root: Path):
         uhi_domains.append([round(u_lo, 2), round(u_hi, 2)])
         Image.fromarray(colorize(dst, u_lo, u_hi, reds_lut), "RGBA").save(
             out_dir / f"frame_uhi_{k:03d}.png", optimize=True)
+
+    # ---- aoi.geojson — outline of the modelled area (finite-pixel footprint)
+    # in EPSG:4326, for a thick boundary line on the map. Simplified so it is a
+    # few KB, not a per-pixel staircase.
+    aoi_written = _write_aoi_geojson(aoi_mask, dst_transform, out_dir / "aoi.geojson")
 
     # ---- values.bin — the shown window, NATIVE grid (no resampling) -----
     # one float32 per pixel per shown hour, so the hover readout is the exact
@@ -428,7 +479,7 @@ def build(nc_path: Path, city_id: str, cfg: dict, out_root: Path):
     ctx = {}
     for key, name, rgb, thr in CONTEXT_LAYERS:
         got = _render_context_overlay(cfg.get(key), rgb, thr, geo_bounds,
-                                      src_crs, out_dir / name)
+                                      src_crs, out_dir / name, aoi_mask)
         if got:
             ctx[key.replace("_tif", "")] = {
                 "file": name, "color": "#%02x%02x%02x" % rgb, "threshold": thr,
@@ -477,6 +528,7 @@ def build(nc_path: Path, city_id: str, cfg: dict, out_root: Path):
                        "bounds_wgs84": [round(v, 6) for v in bbox_wgs84]},
         "frames": frame_times,
         "all_times_utc": all_times,
+        "aoi": {"file": "aoi.geojson"} if aoi_written else None,
         "context": ctx,
         "uhi": uhi_block,
         "has_local_observations": bool(cfg.get("has_local_observations", False)),

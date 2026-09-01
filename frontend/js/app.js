@@ -705,13 +705,13 @@
       return stops.map(([t, c]) => `rgb(${c.join(",")}) ${(t * 100).toFixed(0)}%`).join(", ");
     }
 
-    // ColorBrewer "Reds" 9-class — the per-hour "Heat contrast" layer. Kept in
-    // sync with pipeline/build_forecast.py (REDS). Coldest pixel of the hour is
-    // near-white, warmest is deep red.
+    // Blue -> Yellow -> Red diverging ramp — the per-hour "Heat contrast" layer.
+    // Kept in sync with pipeline/build_forecast.py (REDS). Coldest pixel of the
+    // hour = blue, mid = yellow, warmest = red.
     const REDS = [
-      [0.000, [255, 245, 240]], [0.125, [254, 224, 210]], [0.250, [252, 187, 161]],
-      [0.375, [252, 146, 114]], [0.500, [251, 106, 74]],  [0.625, [239, 59, 44]],
-      [0.750, [203, 24, 29]],   [0.875, [165, 15, 21]],   [1.000, [103, 0, 13]],
+      [0.000, [49, 54, 149]],   [0.125, [69, 117, 180]],  [0.250, [116, 173, 209]],
+      [0.375, [171, 217, 233]], [0.500, [255, 255, 191]],  [0.625, [254, 224, 144]],
+      [0.750, [253, 174, 97]],  [0.875, [244, 109, 67]],   [1.000, [215, 48, 39]],
     ];
 
     const S = {
@@ -876,6 +876,15 @@
                        : key === "water" ? 0.85 : 0.95,
                      "raster-resampling": "nearest" } });
         }
+        // AOI outline — thick black boundary around the modelled area
+        if (S.meta.aoi && S.meta.aoi.file) {
+          map.addSource("aoi", { type: "geojson",
+            data: abs(FC.asset(S.city, S.meta.aoi.file)) + S.v });
+          map.addLayer({ id: "aoi-halo", type: "line", source: "aoi",
+            paint: { "line-color": "#ffffff", "line-width": 6, "line-opacity": 0.6 } });
+          map.addLayer({ id: "aoi-line", type: "line", source: "aoi",
+            paint: { "line-color": "#000000", "line-width": 3 } });
+        }
         applyLayers();
       });
 
@@ -962,8 +971,8 @@
           <div class="hb-ticks"><span>${d[0].toFixed(1)}°</span>` +
           `<span>${((d[0] + d[1]) / 2).toFixed(1)}°</span><span>${d[1].toFixed(1)}°C</span></div>`;
         if (bn) bn.textContent =
-          `Heat contrast — rescaled every hour: coldest point now = white, ` +
-          `warmest = deep red (min ${S.mL.uhi.min_span_c} °C span). Shows the ` +
+          `Heat contrast — rescaled every hour: coldest point now = blue, ` +
+          `warmest = red (min ${S.mL.uhi.min_span_c} °C span). Shows the ` +
           `urban-heat pattern, not absolute temperature.`;
       } else {
         const dom = S.mL.absolute.domain_c;

@@ -3,15 +3,15 @@
   "display_name": "Ghent",
   "simulation_name": "V29_forecast",
   "forecast_model": "ecmwf_ifs",
-  "forecast_issue_time_utc": "2026-09-01T07:47:36Z",
-  "fetch_time_utc": "2026-09-01T07:47:36Z",
-  "run_time_utc": "2026-09-01T08:19:57Z",
-  "source_nc": "ta_abs_2026-09-01_to_2026-09-16_issued20260901T074736Z.nc",
-  "source_nc_sha256": "8c38b13aa31b733f7e6c1c30699eb8d91ad41afeb8ff74b03dd0fc13dafbed74",
+  "forecast_issue_time_utc": "2026-09-01T08:23:38Z",
+  "fetch_time_utc": "2026-09-01T08:23:38Z",
+  "run_time_utc": "2026-09-01T08:29:58Z",
+  "source_nc": "ta_abs_2026-09-01_to_2026-09-16_issued20260901T082338Z.nc",
+  "source_nc_sha256": "ec1fe53a87c24c0a98e3dfee17faaa44f2c2dac8b7634b376933a3870b4347fa",
   "time_start_utc": "2026-09-01T00:00:00Z",
   "time_end_utc": "2026-09-16T00:00:00Z",
   "n_hours": 361,
-  "frame_start_index": 8,
+  "frame_start_index": 9,
   "n_frames": 72,
   "timezone": "Europe/Brussels",
   "grid_crs": "EPSG:32631",
@@ -49,10 +49,6 @@
       "min_span_c": 2.0,
       "rescale": "per_frame: coldest pixel -> 0, warmest -> 1",
       "per_frame_domain_c": [
-        [
-          16.41,
-          18.41
-        ],
         [
           17.33,
           19.33
@@ -336,6 +332,10 @@
         [
           19.22,
           21.22
+        ],
+        [
+          19.63,
+          21.63
         ]
       ]
     }
@@ -355,12 +355,6 @@
     ]
   },
   "frames": [
-    {
-      "utc": "2026-09-01T08:00:00Z",
-      "local": "2026-09-01 10:00",
-      "hour_local": 10,
-      "day": 1
-    },
     {
       "utc": "2026-09-01T09:00:00Z",
       "local": "2026-09-01 11:00",
@@ -786,6 +780,12 @@
       "local": "2026-09-04 09:00",
       "hour_local": 9,
       "day": 4
+    },
+    {
+      "utc": "2026-09-04T08:00:00Z",
+      "local": "2026-09-04 10:00",
+      "hour_local": 10,
+      "day": 4
     }
   ],
   "all_times_utc": [
@@ -1151,6 +1151,9 @@
     "2026-09-15T23:00:00Z",
     "2026-09-16T00:00:00Z"
   ],
+  "aoi": {
+    "file": "aoi.geojson"
+  },
   "context": {
     "buildings": {
       "file": "ctx_buildings.png",
