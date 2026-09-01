@@ -217,18 +217,37 @@ def _render_context_overlay(tif_path, rgb, thr, geo_bounds, src_crs, out_png):
     return (dw, dh)
 
 
-def _urban_rural_split(bf_path: Path, ta_shape):
-    """Read BuildingFraction_2000m (pixel-aligned with ta_abs), split valid
-    pixels at the median into Urban (upper half) / Rural (lower half).
-    Returns (urban_mask, rural_mask, threshold) or None if unavailable."""
+def _urban_rural_split(bf_path: Path, ta_shape, ta_transform=None, ta_crs=None):
+    """Read a coarse BuildingFraction aggregate, split valid pixels at the
+    median into Urban (upper half) / Rural (lower half).
+    Returns (urban_mask, rural_mask, threshold) or None if unavailable.
+
+    The BF raster is normally already pixel-aligned with ta_abs. When it is not
+    (e.g. ta_abs was AOI-clipped to a sub-window while the staged BF raster is
+    still the full city grid), pass ta_transform/ta_crs — the BF raster is then
+    reprojected onto the ta_abs grid with nearest resampling so the masks line
+    up. NaN outside the BF footprint stays NaN (never filled)."""
     if not bf_path or not Path(bf_path).is_file():
         return None
     with rasterio.open(bf_path) as ds:
         bf = ds.read(1).astype("float64")
         nd = ds.nodata
+        bf_transform, bf_crs = ds.transform, ds.crs
     if bf.shape != tuple(ta_shape):
-        print(f"      ! BF2000m shape {bf.shape} != ta_abs {tuple(ta_shape)} — UHI skipped")
-        return None
+        if ta_transform is None or ta_crs is None:
+            print(f"      ! BF2000m shape {bf.shape} != ta_abs {tuple(ta_shape)} — UHI skipped")
+            return None
+        src = bf if nd is None else np.where(bf == nd, np.nan, bf)
+        dst = np.full(tuple(ta_shape), np.nan, dtype="float64")
+        reproject(
+            src, dst,
+            src_transform=bf_transform, src_crs=bf_crs,
+            dst_transform=ta_transform, dst_crs=ta_crs,
+            src_nodata=np.nan, dst_nodata=np.nan,
+            resampling=Resampling.nearest,
+        )
+        bf, nd = dst, None
+        print(f"      BF2000m reprojected onto ta_abs grid {tuple(ta_shape)} for UHI split")
     valid = np.isfinite(bf) if nd is None else (np.isfinite(bf) & (bf != nd))
     thr = float(np.median(bf[valid]))
     urban = valid & (bf >= thr)
@@ -354,7 +373,7 @@ def build(nc_path: Path, city_id: str, cfg: dict, out_root: Path):
     #   Rural = lower half. Reported for the FULL horizon.
     uhi_block = None
     bf_path = cfg.get("bf2000m")
-    split = _urban_rural_split(bf_path, (ny, nx))
+    split = _urban_rural_split(bf_path, (ny, nx), src_transform, src_crs)
     if split is not None:
         urban, rural, thr = split
         predictor = Path(bf_path).stem.replace("_resampled", "")
