@@ -5,7 +5,7 @@
   "forecast_model": "ecmwf_ifs",
   "forecast_issue_time_utc": "2026-09-01T08:23:38Z",
   "fetch_time_utc": "2026-09-01T08:23:38Z",
-  "run_time_utc": "2026-09-01T09:25:27Z",
+  "run_time_utc": "2026-09-01T10:08:52Z",
   "source_nc": "ta_abs_2026-09-01_to_2026-09-16_issued20260901T082338Z.nc",
   "source_nc_sha256": "ec1fe53a87c24c0a98e3dfee17faaa44f2c2dac8b7634b376933a3870b4347fa",
   "time_start_utc": "2026-09-01T00:00:00Z",

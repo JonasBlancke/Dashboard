@@ -168,7 +168,7 @@ def _fetch_context_series(lat: float, lon: float, times_utc: list[str],
     """Small standalone Open-Meteo call for the map's wind arrows + precip chart.
     Point forecast (no key), aligned to the frames' UTC hours. Independent of the
     ML model fetch so ML-UrbanHeat stays untouched. Writes context_series.json:
-      {issue, hours:[iso…], wind_speed_ms:[…], wind_dir_deg:[…], precip_mm:[…]}
+      {issue, hours:[iso…], wind_speed_kmh:[…], wind_dir_deg:[…], precip_mm:[…]}
     Returns False on any failure (the tab just skips those widgets)."""
     try:
         import requests
@@ -176,7 +176,7 @@ def _fetch_context_series(lat: float, lon: float, times_utc: list[str],
         r = requests.get("https://api.open-meteo.com/v1/forecast", timeout=30, params={
             "latitude": round(lat, 4), "longitude": round(lon, 4),
             "hourly": "wind_speed_10m,wind_direction_10m,precipitation",
-            "wind_speed_unit": "ms", "precipitation_unit": "mm",
+            "wind_speed_unit": "kmh", "precipitation_unit": "mm",
             "timezone": "UTC", "start_date": t0, "end_date": t1,
             "models": "ecmwf_ifs025",
         })
@@ -193,12 +193,12 @@ def _fetch_context_series(lat: float, lon: float, times_utc: list[str],
         payload = {
             "issue": times_utc[0],
             "hours": times_utc,
-            "wind_speed_ms": col("wind_speed_10m"),
+            "wind_speed_kmh": col("wind_speed_10m"),
             "wind_dir_deg": col("wind_direction_10m"),
             "precip_mm": col("precipitation"),
         }
         out_path.write_text(json.dumps(payload), encoding="utf-8")
-        n_ok = sum(v is not None for v in payload["wind_speed_ms"])
+        n_ok = sum(v is not None for v in payload["wind_speed_kmh"])
         print(f"  context series: {n_ok}/{len(times_utc)} h wind+precip -> {out_path.name}")
         return True
     except Exception as e:

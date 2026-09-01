@@ -819,7 +819,7 @@
         try { S.ctxSeries = await fetch(FC.asset(cid, m.context_series.file) + S.v).then((r) => r.json()); }
         catch (e) { S.ctxSeries = null; }
       }
-      const haveWind = !!(S.ctxSeries && S.ctxSeries.wind_speed_ms);
+      const haveWind = !!(S.ctxSeries && S.ctxSeries.wind_speed_kmh);
       g("fcWind").hidden = !haveWind;
       renderPrecip();
 
@@ -995,7 +995,7 @@
       try {
         if (m.getLayer(OV)) m.setPaintProperty(OV, "raster-opacity", S.layers.basemap ? 0.86 : 1);
       } catch (e) {}
-      if (S.ctxSeries && S.ctxSeries.wind_speed_ms) {
+      if (S.ctxSeries && S.ctxSeries.wind_speed_kmh) {
         if (S.layers.wind === false) WindField.stop();
         else WindField.attach();
       }
@@ -1102,14 +1102,14 @@
                      "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
     function updateContext(i) {
       const c = S.ctxSeries;
-      if (c && c.wind_speed_ms) {
-        const spd = c.wind_speed_ms[i], dir = c.wind_dir_deg[i];
-        g("fcWindVal").textContent = spd == null ? "—" : spd.toFixed(1);
+      if (c && c.wind_speed_kmh) {
+        const spd = c.wind_speed_kmh[i], dir = c.wind_dir_deg[i];
+        g("fcWindVal").textContent = spd == null ? "—" : Math.round(spd);
         if (dir != null) {
           g("fcWindDir").textContent = COMPASS[Math.round(dir / 22.5) % 16];
           g("fwArrow").setAttribute("transform", `rotate(${(dir + 180) % 360} 22 22)`);
         }
-        WindField.set(spd, dir);   // drive the animated arrows on the map
+        WindField.set(spd, dir);   // km/h — drives the animated arrows
       }
       const now = g("fpNow");
       if (now && c && c.precip_mm) {
@@ -1126,24 +1126,31 @@
     // ---- animated wind field — a grid of drifting arrows over the map,
     //      Windy-style. Single point vector, so the field is uniform. --------
     const WindField = (() => {
-      let cv, ctx2, raf = 0, spd = 0, dir = 0, t = 0, dpr = 1;
+      let cv, ctx2, raf = 0, spd = 0, dir = 0, t = 0, dpr = 1, ro = null;
       const SPACING = 58;          // px between arrows
       function resize() {
         if (!cv) return;
         dpr = Math.min(2, window.devicePixelRatio || 1);
-        const r = cv.getBoundingClientRect();
-        cv.width = r.width * dpr; cv.height = r.height * dpr;
+        // measure the map, not the canvas — canvas may be 0 while its tab was hidden
+        const host = g("fcMap") || cv;
+        const r = host.getBoundingClientRect();
+        const w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
+        if (cv.width !== w * dpr || cv.height !== h * dpr) {
+          cv.width = w * dpr; cv.height = h * dpr;
+          cv.style.width = w + "px"; cv.style.height = h + "px";
+        }
       }
       function draw() {
         if (!cv || !ctx2) return;
+        resize();                                           // keep in step with the map
         const W = cv.width, H = cv.height, s = SPACING * dpr;
         ctx2.clearRect(0, 0, W, H);
-        if (spd <= 0.1) { raf = requestAnimationFrame(draw); return; }
+        if (spd <= 0.5) { raf = requestAnimationFrame(draw); return; }   // km/h
         // where the wind blows TO, in canvas coords (y down)
         const rad = ((dir + 180) % 360) * Math.PI / 180;
         const ux = Math.sin(rad), uy = -Math.cos(rad);
-        const len = (6 + Math.min(26, spd * 3.2)) * dpr;    // arrow length by speed
-        const drift = ((t * (0.4 + spd * 0.09)) % s);       // phase along the flow
+        const len = (6 + Math.min(28, spd * 0.9)) * dpr;    // arrow length by km/h
+        const drift = ((t * (0.4 + spd * 0.025)) % s);      // phase along the flow
         ctx2.lineCap = "round";
         ctx2.strokeStyle = "rgba(15,23,36,0.7)";
         ctx2.lineWidth = 1.6 * dpr;
@@ -1173,10 +1180,18 @@
           ctx2 = cv.getContext("2d");
           cv.hidden = false; resize();
           window.addEventListener("resize", resize);
+          if (!ro && "ResizeObserver" in window) {
+            ro = new ResizeObserver(resize);
+            const host = g("fcMap"); if (host) ro.observe(host);
+          }
           if (!raf) raf = requestAnimationFrame(draw);
         },
         set(s, d) { if (s != null) spd = s; if (d != null) dir = d; },
-        stop() { if (raf) cancelAnimationFrame(raf); raf = 0; if (cv) cv.hidden = true; },
+        stop() {
+          if (raf) cancelAnimationFrame(raf); raf = 0;
+          if (ro) { ro.disconnect(); ro = null; }
+          if (cv) cv.hidden = true;
+        },
         resize,
       };
     })();
