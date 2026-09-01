@@ -98,8 +98,9 @@ jobs:
           pip install -r requirements.txt   # flask rasterio geopandas numpy pillow pyproj xarray netCDF4 pyyaml
           # forecast-stage deps not in requirements.txt. V29 drops ERA5zdiff, so
           # no GDAL/momepy/exactextract and none of ML-UrbanHeat/Resources/.
-          # matplotlib is only used for the stage's preview PNG.
-          pip install "xgboost<3" joblib scikit-learn pvlib ephem pandas requests matplotlib
+          # matplotlib: preview PNG.  fiona/shapely: the AOI.geojson grid clip.
+          pip install "xgboost<3" joblib scikit-learn pvlib ephem pandas requests \
+                      matplotlib fiona shapely
 
       - name: Fetch V29 assets from the Release
         env:
@@ -108,13 +109,18 @@ jobs:
           set -euo pipefail
           ml=pipeline/ml_urbanheat
           mkdir -p data/forecast/_spatial/Ghent \
-                   "$ml/models/V29_forecast" "$ml/configs"
+                   "$ml/models/V29_forecast" "$ml/configs" \
+                   "$ml/cities/Ghent/raw_data"
           tmp="$(mktemp -d)"
           gh release download "$RELEASE_TAG" -R "${{ github.repository }}" -D "$tmp" \
-            -p 'spatial-ghent-V29_forecast.tar.gz' -p 'xgb-V29_forecast.joblib' -p 'config-V29_forecast.yaml'
+            -p 'spatial-ghent-V29_forecast.tar.gz' -p 'xgb-V29_forecast.joblib' \
+            -p 'config-V29_forecast.yaml' -p 'aoi-ghent.geojson'
           tar -C data/forecast/_spatial/Ghent -xzf "$tmp/spatial-ghent-V29_forecast.tar.gz"
           cp "$tmp/xgb-V29_forecast.joblib" "$ml/models/V29_forecast/XGB_model.joblib"
           cp "$tmp/config-V29_forecast.yaml" "$ml/configs/V29_forecast.yaml"
+          # AOI polygon that clips the prediction grid (run_predict_maps.py)
+          [ -f "$tmp/aoi-ghent.geojson" ] && \
+            cp "$tmp/aoi-ghent.geojson" "$ml/cities/Ghent/raw_data/AOI.geojson"
           echo "spatial files: $(ls data/forecast/_spatial/Ghent | wc -l)"
 
       - name: Resolve cached MERIT height (Earth Engine is not available in CI)

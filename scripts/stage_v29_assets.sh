@@ -27,6 +27,13 @@ REPO_ARG=()
 spatial_src="$ML/cities/$CITY/processed_data/$SIM/spatial"
 model_src="$ML/models/$SIM/XGB_model.joblib"
 config_src="$ML/configs/$SIM.yaml"
+# AOI polygon that clips the prediction grid (run_predict_maps.py::_resolve_aoi_path)
+aoi_src=""
+for c in "$ML/cities/$CITY/AOI.geojson" \
+         "$ML/cities/$CITY/raw_data/AOI.geojson" \
+         "$ML/cities/$CITY/raw_data/spatial/AOI.geojson"; do
+  [ -f "$c" ] && { aoi_src="$c"; break; }
+done
 
 for p in "$spatial_src" "$model_src" "$config_src"; do
   [ -e "$p" ] || { echo "missing: $p" >&2; exit 1; }
@@ -34,24 +41,70 @@ done
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
+stage="$work/spatial"; mkdir -p "$stage"
 
-echo "==> packing spatial TIFs (only what the forecast stage reads)"
-# *_resampled.tif + default_grid.tif drive the model; the plain BuildingFraction
-# / TreeFraction / WaterFraction masks feed the context overlays + UHI split.
-tar -C "$spatial_src" -czf "$work/spatial-ghent-$SIM.tar.gz" \
-  $(cd "$spatial_src" && ls \
-      *_resampled.tif \
-      default_grid.tif \
-      BuildingFraction.tif \
-      BuildingFraction_fraction_mask.tif \
-      TreeFraction.tif \
-      TreeFraction_fraction_mask.tif \
-      WaterFraction_fraction_mask.tif \
-      2>/dev/null)
+echo "==> collecting model-input rasters (*_resampled.tif + default_grid.tif)"
+# these drive the XGBoost model; ~1 MB each, keep as-is.
+( cd "$spatial_src" && cp *_resampled.tif default_grid.tif "$stage/" 2>/dev/null )
+
+echo "==> down-sampling the 2 m context rasters (buildings / trees / water)"
+# build_forecast.py only renders these at <=1200 px, but the native files are
+# ~600 MB each. Ship ~2000 px COG-ish copies instead (nearest, so masks stay
+# crisp). run_city_forecast.py picks these filenames up unchanged.
+python - "$spatial_src" "$stage" <<'PY'
+import sys, pathlib, numpy as np, rasterio
+from rasterio.enums import Resampling
+src_dir, out_dir = map(pathlib.Path, sys.argv[1:3])
+targets = ["BuildingFraction.tif", "TreeFraction.tif", "WaterFraction_fraction_mask.tif"]
+MAXPX = 2000
+for name in targets:
+    p = src_dir / name
+    if not p.is_file():
+        print(f"  ! {name} missing — skipped"); continue
+    with rasterio.open(p) as ds:
+        scale = min(1.0, MAXPX / max(ds.width, ds.height))
+        w, h = max(1, round(ds.width * scale)), max(1, round(ds.height * scale))
+        data = ds.read(1, out_shape=(h, w), resampling=Resampling.average)
+        prof = ds.profile
+    prof.update(width=w, height=h,
+                transform=ds.transform * ds.transform.scale(ds.width / w, ds.height / h),
+                compress="deflate", predictor=2, tiled=False)
+    prof.pop("blockxsize", None); prof.pop("blockysize", None)
+    with rasterio.open(out_dir / name, "w", **prof) as dst:
+        dst.write(data, 1)
+    mb = (out_dir / name).stat().st_size / 1e6
+    print(f"  {name}: {ds.width}x{ds.height} -> {w}x{h}  ({mb:.1f} MB)")
+PY
+
+tar -C "$stage" -czf "$work/spatial-ghent-$SIM.tar.gz" .
 ls -lh "$work/spatial-ghent-$SIM.tar.gz"
 
 cp "$model_src"  "$work/xgb-$SIM.joblib"
 cp "$config_src" "$work/config-$SIM.yaml"
+
+upload_extra=()
+if [ -n "$aoi_src" ]; then
+  echo "==> simplifying AOI polygon ($aoi_src)"
+  python - "$aoi_src" "$work/aoi-ghent.geojson" <<'PY'
+import sys, json
+from shapely.geometry import shape, mapping
+from shapely.ops import unary_union
+src, out = sys.argv[1:3]
+gj = json.load(open(src))
+feats = gj.get("features", [gj])
+geom = unary_union([shape(f.get("geometry", f)) for f in feats]).buffer(0)
+geom = geom.simplify(0.0003, preserve_topology=True)   # ~30 m
+json.dump({"type": "FeatureCollection",
+           "crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:OGC:1.3:CRS84"}},
+           "features": [{"type": "Feature", "properties": {}, "geometry": mapping(geom)}]},
+          open(out, "w"))
+n = len(mapping(geom)["coordinates"][0]) if geom.geom_type == "Polygon" else "multi"
+print(f"  -> {out}  ({n} pts, {__import__('os').path.getsize(out)} bytes)")
+PY
+  upload_extra+=("$work/aoi-ghent.geojson")
+else
+  echo "==> no AOI.geojson found near $ML/cities/$CITY — CI will predict the full grid"
+fi
 
 echo "==> ensuring release $TAG exists"
 if ! gh release view "$TAG" "${REPO_ARG[@]}" >/dev/null 2>&1; then
@@ -64,7 +117,8 @@ echo "==> uploading assets (clobber)"
 gh release upload "$TAG" "${REPO_ARG[@]}" --clobber \
   "$work/spatial-ghent-$SIM.tar.gz" \
   "$work/xgb-$SIM.joblib" \
-  "$work/config-$SIM.yaml"
+  "$work/config-$SIM.yaml" \
+  "${upload_extra[@]}"
 
 echo "done. release '$TAG' now carries:"
 gh release view "$TAG" "${REPO_ARG[@]}" --json assets --jq '.assets[] | "  \(.name)  (\(.size) bytes)"'
