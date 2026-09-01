@@ -142,6 +142,17 @@ def main():
                 city_cfg[key] = str(spatial / fname)
                 break
 
+    # ZOI — an optional smaller "zone of interest" inside the AOI. Same lookup
+    # paths as the AOI clip (run_predict_maps.py::_resolve_aoi_path).
+    city_root = ml / "cities" / city_name
+    if not city_cfg.get("zoi_geojson"):
+        for cand in (city_root / "ZOI.geojson",
+                     city_root / "raw_data" / "ZOI.geojson",
+                     city_root / "raw_data" / "spatial" / "ZOI.geojson"):
+            if cand.is_file():
+                city_cfg["zoi_geojson"] = str(cand)
+                break
+
     build_web(nc, a.city, city_cfg, DATA)
     write_manifest(DATA)
     print("done.")

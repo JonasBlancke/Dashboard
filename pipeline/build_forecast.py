@@ -206,6 +206,30 @@ def _fetch_context_series(lat: float, lon: float, times_utc: list[str],
         return False
 
 
+def _passthrough_geojson(src: str | None, out_path: Path) -> bool:
+    """Copy a GeoJSON to `out_path`, normalising to a one-Feature FeatureCollection
+    of the union geometry (light 30 m simplify). Returns False if unavailable."""
+    if not src or not Path(src).is_file():
+        return False
+    try:
+        from shapely.geometry import shape, mapping
+        from shapely.ops import unary_union
+        gj = json.loads(Path(src).read_text(encoding="utf-8"))
+        feats = gj.get("features", [gj])
+        geom = unary_union([shape(f.get("geometry", f)) for f in feats]).buffer(0)
+        geom = geom.simplify(0.0003, preserve_topology=True)
+        Path(out_path).write_text(json.dumps({
+            "type": "FeatureCollection",
+            "crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:OGC:1.3:CRS84"}},
+            "features": [{"type": "Feature", "properties": {}, "geometry": mapping(geom)}],
+        }), encoding="utf-8")
+        print(f"  ZOI outline -> {out_path.name}")
+        return True
+    except Exception as e:
+        print(f"  ZOI passthrough skipped ({e})")
+        return False
+
+
 def _write_aoi_geojson(mask: np.ndarray, transform, out_path: Path) -> bool:
     """Polygonise the boolean `mask` (True = inside the modelled area) on the
     given lng/lat `transform`, keep the largest ring, lightly simplify, and
@@ -467,6 +491,10 @@ def build(nc_path: Path, city_id: str, cfg: dict, out_root: Path):
     # few KB, not a per-pixel staircase.
     aoi_written = _write_aoi_geojson(aoi_mask, dst_transform, out_dir / "aoi.geojson")
 
+    # ---- zoi.geojson — optional smaller "zone of interest" inside the AOI,
+    # drawn as a thick red boundary. Passed through as-is (assumed WGS84 / CRS84).
+    zoi_written = _passthrough_geojson(cfg.get("zoi_geojson"), out_dir / "zoi.geojson")
+
     # ---- values.bin — the shown window, NATIVE grid (no resampling) -----
     # one float32 per pixel per shown hour, so the hover readout is the exact
     # ta_abs value, not an interpolated one.
@@ -580,6 +608,7 @@ def build(nc_path: Path, city_id: str, cfg: dict, out_root: Path):
         "frames": frame_times,
         "all_times_utc": all_times,
         "aoi": {"file": "aoi.geojson"} if aoi_written else None,
+        "zoi": {"file": "zoi.geojson"} if zoi_written else None,
         "context_series": {"file": "context_series.json"} if ctx_series else None,
         "context": ctx,
         "uhi": uhi_block,

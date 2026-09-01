@@ -970,6 +970,15 @@
           map.addLayer({ id: "aoi-line", type: "line", source: "aoi",
             paint: { "line-color": "#000000", "line-width": 3 } });
         }
+        // ZOI outline — thick red boundary around the smaller zone of interest
+        if (S.meta.zoi && S.meta.zoi.file) {
+          map.addSource("zoi", { type: "geojson",
+            data: abs(FC.asset(S.city, S.meta.zoi.file)) + S.v });
+          map.addLayer({ id: "zoi-halo", type: "line", source: "zoi",
+            paint: { "line-color": "#ffffff", "line-width": 7, "line-opacity": 0.7 } });
+          map.addLayer({ id: "zoi-line", type: "line", source: "zoi",
+            paint: { "line-color": "#e11d2e", "line-width": 3.5 } });
+        }
         applyLayers();
       });
 

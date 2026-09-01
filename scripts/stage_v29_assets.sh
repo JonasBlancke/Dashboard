@@ -28,12 +28,15 @@ spatial_src="$ML/cities/$CITY/processed_data/$SIM/spatial"
 model_src="$ML/models/$SIM/XGB_model.joblib"
 config_src="$ML/configs/$SIM.yaml"
 # AOI polygon that clips the prediction grid (run_predict_maps.py::_resolve_aoi_path)
-aoi_src=""
-for c in "$ML/cities/$CITY/AOI.geojson" \
-         "$ML/cities/$CITY/raw_data/AOI.geojson" \
-         "$ML/cities/$CITY/raw_data/spatial/AOI.geojson"; do
-  [ -f "$c" ] && { aoi_src="$c"; break; }
-done
+find_geojson() {  # $1 = basename (AOI / ZOI) -> echoes first hit
+  for c in "$ML/cities/$CITY/$1.geojson" \
+           "$ML/cities/$CITY/raw_data/$1.geojson" \
+           "$ML/cities/$CITY/raw_data/spatial/$1.geojson"; do
+    [ -f "$c" ] && { echo "$c"; return; }
+  done
+}
+aoi_src="$(find_geojson AOI)"
+zoi_src="$(find_geojson ZOI)"
 
 for p in "$spatial_src" "$model_src" "$config_src"; do
   [ -e "$p" ] || { echo "missing: $p" >&2; exit 1; }
@@ -82,11 +85,9 @@ ls -lh "$work/spatial-ghent-$SIM.tar.gz"
 cp "$model_src"  "$work/xgb-$SIM.joblib"
 cp "$config_src" "$work/config-$SIM.yaml"
 
-upload_extra=()
-if [ -n "$aoi_src" ]; then
-  echo "==> simplifying AOI polygon ($aoi_src)"
-  python - "$aoi_src" "$work/aoi-ghent.geojson" <<'PY'
-import sys, json
+simplify_geojson() {  # $1 = source, $2 = out
+  python - "$1" "$2" <<'PY'
+import sys, json, os
 from shapely.geometry import shape, mapping
 from shapely.ops import unary_union
 src, out = sys.argv[1:3]
@@ -98,12 +99,27 @@ json.dump({"type": "FeatureCollection",
            "crs": {"type": "name", "properties": {"name": "urn:ogc:def:crs:OGC:1.3:CRS84"}},
            "features": [{"type": "Feature", "properties": {}, "geometry": mapping(geom)}]},
           open(out, "w"))
-n = len(mapping(geom)["coordinates"][0]) if geom.geom_type == "Polygon" else "multi"
-print(f"  -> {out}  ({n} pts, {__import__('os').path.getsize(out)} bytes)")
+c = mapping(geom)["coordinates"]
+n = len(c[0]) if geom.geom_type == "Polygon" else "multi"
+print(f"  -> {out}  ({n} pts, {os.path.getsize(out)} bytes)")
 PY
-  upload_extra+=("$work/aoi-ghent.geojson")
+}
+
+CITY_LC="$(echo "$CITY" | tr '[:upper:]' '[:lower:]')"
+upload_extra=()
+if [ -n "$aoi_src" ]; then
+  echo "==> simplifying AOI polygon ($aoi_src)"
+  simplify_geojson "$aoi_src" "$work/aoi-$CITY_LC.geojson"
+  upload_extra+=("$work/aoi-$CITY_LC.geojson")
 else
   echo "==> no AOI.geojson found near $ML/cities/$CITY — CI will predict the full grid"
+fi
+if [ -n "$zoi_src" ]; then
+  echo "==> simplifying ZOI polygon ($zoi_src)"
+  simplify_geojson "$zoi_src" "$work/zoi-$CITY_LC.geojson"
+  upload_extra+=("$work/zoi-$CITY_LC.geojson")
+else
+  echo "==> no ZOI.geojson found near $ML/cities/$CITY — no red zone-of-interest outline"
 fi
 
 echo "==> ensuring release $TAG exists"
