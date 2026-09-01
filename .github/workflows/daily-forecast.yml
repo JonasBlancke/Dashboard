@@ -10,8 +10,12 @@ name: daily-forecast
 #   4. rotate  latest/ -> previous/  (so at most two forecasts on disk) and
 #      commit data/forecast/<city>/{latest,previous}/**
 #
+# Cities come from cities.forecast.yaml (the `matrix` job reads it). Per-city
+# spatial TIFs + AOI/ZOI ride on the v29-assets Release, keyed by the city id
+# (spatial-<id>-V29_forecast.tar.gz, aoi-<id>.geojson, zoi-<id>.geojson).
+#
 # One-time setup (see README "Live Forecast — GitHub Actions"):
-#   - `bash scripts/stage_v29_assets.sh` to create the v29-assets Release
+#   - `bash scripts/stage_v29_assets.sh` to (re)build the v29-assets Release
 #   - repo secret ML_URBANHEAT_TOKEN: a token with read access to
 #     b-kode/ML-UrbanHeat (this repo's GITHUB_TOKEN cannot reach it)
 #   - Settings -> Pages -> Source: GitHub Actions
@@ -105,25 +109,29 @@ jobs:
       - name: Fetch V29 assets from the Release
         env:
           GH_TOKEN: ${{ github.token }}
+          CITY: ${{ matrix.city }}
         run: |
           set -euo pipefail
           ml=pipeline/ml_urbanheat
-          mkdir -p data/forecast/_spatial/Ghent \
+          # ML-UrbanHeat name for this city id (dir paths use it, not the id)
+          NAME=$(python -c "import yaml,os;print(yaml.safe_load(open('cities.forecast.yaml'))['cities'][os.environ['CITY']]['ml_urbanheat_city_name'])")
+          echo "ML_NAME=$NAME" >> "$GITHUB_ENV"
+          mkdir -p "data/forecast/_spatial/$NAME" \
                    "$ml/models/V29_forecast" "$ml/configs" \
-                   "$ml/cities/Ghent/raw_data"
+                   "$ml/cities/$NAME/raw_data"
           tmp="$(mktemp -d)"
           gh release download "$RELEASE_TAG" -R "${{ github.repository }}" -D "$tmp" \
-            -p 'spatial-ghent-V29_forecast.tar.gz' -p 'xgb-V29_forecast.joblib' \
-            -p 'config-V29_forecast.yaml' -p 'aoi-ghent.geojson' -p 'zoi-ghent.geojson' || true
-          tar -C data/forecast/_spatial/Ghent -xzf "$tmp/spatial-ghent-V29_forecast.tar.gz"
+            -p "spatial-$CITY-V29_forecast.tar.gz" -p 'xgb-V29_forecast.joblib' \
+            -p 'config-V29_forecast.yaml' -p "aoi-$CITY.geojson" -p "zoi-$CITY.geojson" || true
+          tar -C "data/forecast/_spatial/$NAME" -xzf "$tmp/spatial-$CITY-V29_forecast.tar.gz"
           cp "$tmp/xgb-V29_forecast.joblib" "$ml/models/V29_forecast/XGB_model.joblib"
           cp "$tmp/config-V29_forecast.yaml" "$ml/configs/V29_forecast.yaml"
           # AOI clips the prediction grid; ZOI is just a red outline on the map.
-          [ -f "$tmp/aoi-ghent.geojson" ] && \
-            cp "$tmp/aoi-ghent.geojson" "$ml/cities/Ghent/raw_data/AOI.geojson"
-          [ -f "$tmp/zoi-ghent.geojson" ] && \
-            cp "$tmp/zoi-ghent.geojson" "$ml/cities/Ghent/raw_data/ZOI.geojson"
-          echo "spatial files: $(ls data/forecast/_spatial/Ghent | wc -l)"
+          [ -f "$tmp/aoi-$CITY.geojson" ] && \
+            cp "$tmp/aoi-$CITY.geojson" "$ml/cities/$NAME/raw_data/AOI.geojson"
+          [ -f "$tmp/zoi-$CITY.geojson" ] && \
+            cp "$tmp/zoi-$CITY.geojson" "$ml/cities/$NAME/raw_data/ZOI.geojson"
+          echo "spatial files: $(ls "data/forecast/_spatial/$NAME" | wc -l)"
 
       - name: Resolve cached MERIT height (Earth Engine is not available in CI)
         env:

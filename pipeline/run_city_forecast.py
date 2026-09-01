@@ -48,19 +48,25 @@ def load_registry() -> dict:
     return yaml.safe_load(REGISTRY.read_text(encoding="utf-8")) or {}
 
 
-def ensure_spatial(ml: Path, city_name: str, sim: str) -> None:
-    """The stage needs cities/<City>/processed_data/<sim>/spatial/*.tif. If that
-    dir is empty/missing, copy from STAGED_SPATIAL/<City>/ (committed / release
-    asset). Never regenerate here."""
+def ensure_spatial(ml: Path, city_name: str, sim: str, spatial_sim: str) -> None:
+    """The forecast stage reads cities/<City>/processed_data/<sim>/spatial/*.tif
+    (sim = the forecast config name). If that dir is missing, populate it from,
+    in order: STAGED_SPATIAL/<City>/ (CI: the Release tarball), or the city's
+    own <spatial_sim>/spatial/ dir (some cities keep the identical V29 resampled
+    TIFs under the training sim, e.g. V29_bf1000m_gradual). Never regenerate."""
     dst = ml / "cities" / city_name / "processed_data" / sim / "spatial"
     if dst.is_dir() and any(dst.glob("*_resampled.tif")):
         print(f"  spatial: present ({dst})")
         return
     src = STAGED_SPATIAL / city_name
     if not src.is_dir():
-        raise SystemExit(
-            f"spatial TIFs missing for {city_name}: neither {dst} nor {src} "
-            f"exist. Stage them (see README 'refresh spatial TIFs').")
+        alt = ml / "cities" / city_name / "processed_data" / spatial_sim / "spatial"
+        if spatial_sim != sim and alt.is_dir() and any(alt.glob("*_resampled.tif")):
+            src = alt
+        else:
+            raise SystemExit(
+                f"spatial TIFs missing for {city_name}: none of {dst}, {src}, "
+                f"{alt} exist. Stage them (see README 'refresh spatial TIFs').")
     dst.mkdir(parents=True, exist_ok=True)
     n = 0
     for f in src.glob("*.tif*"):
@@ -111,6 +117,7 @@ def main():
     for k in ("simulation_name", "config_path", "forecast_days", "warmup_hours"):
         city_cfg.setdefault(k, defaults.get(k))
     sim = city_cfg["simulation_name"]
+    spatial_sim = city_cfg.get("spatial_sim", sim)
     city_name = city_cfg["ml_urbanheat_city_name"]
     ml = Path(a.ml_urbanheat)
 
@@ -118,7 +125,7 @@ def main():
     if not a.skip_model:
         if not ml.is_dir():
             raise SystemExit(f"ML-UrbanHeat not found at {ml} (set --ml-urbanheat)")
-        ensure_spatial(ml, city_name, sim)
+        ensure_spatial(ml, city_name, sim, spatial_sim)
         run_downscale(ml, defaults, city_cfg, a.date)
     nc = newest_nc(ml, city_name, sim)
     print(f"  NetCDF: {nc}")

@@ -1,6 +1,14 @@
-# Live Forecast city registry.
-# Adding a city = one block here + staging its ML-UrbanHeat spatial TIFs and
-# caching its MERIT-DEM centre height (merit_height_m). No code changes.
+# ── Live Forecast city registry ─────────────────────────────────────────
+# This file IS the list of cities the daily forecast + the Release-staging
+# script iterate over. Add a city = one block here, then:
+#   1. cache its merit_height_m (one Earth-Engine lookup, done once)
+#   2. make sure ML-UrbanHeat has, for that city:
+#        cities/<Name>/processed_data/<spatial_sim>/spatial/   (resampled TIFs
+#          + default_grid.tif; `spatial_sim` defaults to `simulation_name`)
+#        cities/<Name>/raw_data/AOI.geojson   (required — clips the grid)
+#        cities/<Name>/raw_data/ZOI.geojson   (optional — red outline only)
+#   3. run `bash scripts/stage_v29_assets.sh`  (stages every enabled city)
+# No code changes.
 
 cities:
   ghent:
@@ -12,9 +20,18 @@ cities:
     has_local_observations: true
     value_domain_c: null              # auto from the shown frames (min span 5 °C); set [lo, hi] to pin
     merit_height_m: 11.44935881561851  # cached — skips the Earth Engine lookup
-    # bf_uhi: <path>                   # BuildingFraction_*m raster for the UHI
-                                       # split; auto-found in the ML-UrbanHeat
-                                       # spatial dir if omitted (V29 = 1000m)
+    enabled: true
+
+  patras:
+    ml_urbanheat_city_name: Patras
+    display_name: Patras
+    country: Greece
+    timezone: Europe/Athens
+    center: { lat: 38.292, lon: 21.788 }
+    has_local_observations: true
+    value_domain_c: null
+    merit_height_m: 53.904681672197675  # from cities/Patras/raw_data/era5/era5_grid_heights.json
+    spatial_sim: V29_bf1000m_gradual    # its V29 resampled TIFs live under this sim, not V29_forecast
     enabled: true
 
 defaults:
