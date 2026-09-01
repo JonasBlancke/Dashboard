@@ -823,7 +823,20 @@
       g("fcWind").hidden = !haveWind;
       renderPrecip();
 
+      // AOI polygon rings — clip the wind field to the modelled area
+      let aoiRings = null;
+      if (m.aoi && m.aoi.file) {
+        try {
+          const gj = await fetch(FC.asset(cid, m.aoi.file) + S.v).then((r) => r.json());
+          const geo = (gj.features && gj.features[0] || {}).geometry || gj;
+          aoiRings = geo.type === "MultiPolygon"
+            ? geo.coordinates.flatMap((poly) => poly)
+            : geo.type === "Polygon" ? geo.coordinates : null;
+        } catch (e) { aoiRings = null; }
+      }
+
       buildMap(m);
+      WindField.setAoi(aoiRings);
       if (haveWind && S.layers.wind !== false) WindField.attach();
       else WindField.stop();
       preloadFrames(cid, m.n_frames);
@@ -1127,7 +1140,21 @@
     //      Windy-style. Single point vector, so the field is uniform. --------
     const WindField = (() => {
       let cv, ctx2, raf = 0, spd = 0, dir = 0, t = 0, dpr = 1, ro = null;
+      let aoiRings = null;         // [[ [lng,lat], … ], …] — clip to the AOI
       const SPACING = 58;          // px between arrows
+      function aoiClipPath() {
+        if (!aoiRings || !S.map) return null;
+        const p = new Path2D();
+        for (const ring of aoiRings) {
+          ring.forEach(([lng, lat], k) => {
+            const pt = S.map.project([lng, lat]);
+            const x = pt.x * dpr, y = pt.y * dpr;
+            k ? p.lineTo(x, y) : p.moveTo(x, y);
+          });
+          p.closePath();
+        }
+        return p;
+      }
       function resize() {
         if (!cv) return;
         dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -1146,6 +1173,10 @@
         const W = cv.width, H = cv.height, s = SPACING * dpr;
         ctx2.clearRect(0, 0, W, H);
         if (spd <= 0.5) { raf = requestAnimationFrame(draw); return; }   // km/h
+        // clip the arrows to the AOI polygon (projected to canvas pixels)
+        ctx2.save();
+        const clip = aoiClipPath();
+        if (clip) ctx2.clip(clip);
         // where the wind blows TO, in canvas coords (y down)
         const rad = ((dir + 180) % 360) * Math.PI / 180;
         const ux = Math.sin(rad), uy = -Math.cos(rad);
@@ -1171,6 +1202,7 @@
             ctx2.stroke();
           }
         }
+        ctx2.restore();
         t += 1;
         raf = requestAnimationFrame(draw);
       }
@@ -1187,6 +1219,7 @@
           if (!raf) raf = requestAnimationFrame(draw);
         },
         set(s, d) { if (s != null) spd = s; if (d != null) dir = d; },
+        setAoi(rings) { aoiRings = rings || null; },
         stop() {
           if (raf) cancelAnimationFrame(raf); raf = 0;
           if (ro) { ro.disconnect(); ro = null; }
