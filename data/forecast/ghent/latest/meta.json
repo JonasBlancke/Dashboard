@@ -3,15 +3,15 @@
   "display_name": "Ghent",
   "simulation_name": "V29_forecast",
   "forecast_model": "ecmwf_ifs",
-  "forecast_issue_time_utc": "2026-09-01T13:09:53Z",
-  "fetch_time_utc": "2026-09-01T13:09:53Z",
-  "run_time_utc": "2026-09-01T13:12:33Z",
-  "source_nc": "ta_abs_2026-09-01_to_2026-09-16_issued20260901T130953Z.nc",
-  "source_nc_sha256": "469df4f80569d734e6212ea4d9d54079ac48073e8d354c7d49ae719b7f0ad43e",
+  "forecast_issue_time_utc": "2026-09-01T14:50:06Z",
+  "fetch_time_utc": "2026-09-01T14:50:06Z",
+  "run_time_utc": "2026-09-01T14:52:47Z",
+  "source_nc": "ta_abs_2026-09-01_to_2026-09-16_issued20260901T145006Z.nc",
+  "source_nc_sha256": "5acb20958f0ee70268c9b4275afe207bf756ad415133ff39dd6080a1f1b1729d",
   "time_start_utc": "2026-09-01T00:00:00Z",
   "time_end_utc": "2026-09-16T00:00:00Z",
   "n_hours": 361,
-  "frame_start_index": 14,
+  "frame_start_index": 15,
   "n_frames": 72,
   "timezone": "Europe/Brussels",
   "grid_crs": "EPSG:32631",
@@ -29,7 +29,7 @@
   ],
   "value_domain_c": [
     12.0,
-    25.0
+    26.0
   ],
   "value_domain_source": "auto",
   "layers": {
@@ -37,7 +37,7 @@
       "file": "frame_{k:03d}.png",
       "domain_c": [
         12.0,
-        25.0
+        26.0
       ],
       "domain_source": "auto",
       "ramp": "turbo_remap",
@@ -49,10 +49,6 @@
       "min_span_c": 2.0,
       "rescale": "per_frame: coldest pixel -> 0, warmest -> 1",
       "per_frame_domain_c": [
-        [
-          20.41,
-          22.41
-        ],
         [
           20.36,
           22.36
@@ -336,6 +332,10 @@
         [
           22.63,
           24.63
+        ],
+        [
+          23.91,
+          25.91
         ]
       ]
     }
@@ -355,12 +355,6 @@
     ]
   },
   "frames": [
-    {
-      "utc": "2026-09-01T14:00:00Z",
-      "local": "2026-09-01 16:00",
-      "hour_local": 16,
-      "day": 1
-    },
     {
       "utc": "2026-09-01T15:00:00Z",
       "local": "2026-09-01 17:00",
@@ -786,6 +780,12 @@
       "local": "2026-09-04 15:00",
       "hour_local": 15,
       "day": 4
+    },
+    {
+      "utc": "2026-09-04T14:00:00Z",
+      "local": "2026-09-04 16:00",
+      "hour_local": 16,
+      "day": 4
     }
   ],
   "all_times_utc": [
@@ -1154,6 +1154,7 @@
   "aoi": {
     "file": "aoi.geojson"
   },
+  "zoi": null,
   "context_series": {
     "file": "context_series.json"
   },

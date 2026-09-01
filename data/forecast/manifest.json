@@ -1,12 +1,12 @@
 {
-  "generated_utc": "2026-09-01T13:12:33Z",
+  "generated_utc": "2026-09-01T14:52:47Z",
   "cities": [
     {
       "id": "ghent",
       "display_name": "Ghent",
       "path": "ghent/latest",
-      "issue_time_utc": "2026-09-01T13:09:53Z",
-      "run_time_utc": "2026-09-01T13:12:33Z",
+      "issue_time_utc": "2026-09-01T14:50:06Z",
+      "run_time_utc": "2026-09-01T14:52:47Z",
       "n_hours": 361,
       "n_frames": 72,
       "timezone": "Europe/Brussels",
