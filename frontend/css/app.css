@@ -388,7 +388,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 /* ─────────────── Live Forecast tab ─────────────── */
-#fcStage .city-view { position: relative; }
+#fcStage .city-view { position: relative; background: #eef1f4; }
 #fcMap { position: absolute; inset: 0; }
 
 .fc-banner {

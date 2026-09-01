@@ -843,10 +843,10 @@
                     "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png"],
             attribution: "© OpenStreetMap" },
         }, layers: [
-          { id: "bg", type: "background", paint: { "background-color": "#0a0d12" } },
+          { id: "bg", type: "background", paint: { "background-color": "#eef1f4" } },
           { id: "osm", type: "raster", source: "osm",
-            paint: { "raster-opacity": 0.35, "raster-saturation": -0.7,
-                     "raster-brightness-max": 0.5 } },
+            paint: { "raster-opacity": 0.9, "raster-saturation": -0.55,
+                     "raster-contrast": -0.15, "raster-brightness-min": 0.15 } },
         ] },
         bounds: [[w, s], [e, n]], fitBoundsOptions: { padding: 30 },
         attributionControl: { compact: true }, dragRotate: false,
