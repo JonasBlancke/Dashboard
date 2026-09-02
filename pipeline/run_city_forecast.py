@@ -76,7 +76,9 @@ def ensure_spatial(ml: Path, city_name: str, sim: str, spatial_sim: str) -> None
 
 
 def run_downscale(ml: Path, cfg: dict, city_cfg: dict, run_date: str | None) -> None:
-    cfg_path = ml / cfg.get("config_path", "configs/V27_forecast.yaml")
+    # per-city config_path wins (already merged from defaults via setdefault);
+    # e.g. a city with big AOI relief points at V29_forecast_lrc_pixel.yaml
+    cfg_path = ml / city_cfg.get("config_path", cfg.get("config_path", "configs/V27_forecast.yaml"))
     cmd = [sys.executable, "-u", "workflow/run_forecast_downscale_v2.py",
            "--config", str(cfg_path),
            "--city-name", city_cfg["ml_urbanheat_city_name"]]

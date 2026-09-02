@@ -113,19 +113,32 @@ jobs:
         run: |
           set -euo pipefail
           ml=pipeline/ml_urbanheat
-          # ML-UrbanHeat name for this city id (dir paths use it, not the id)
-          NAME=$(python -c "import yaml,os;print(yaml.safe_load(open('cities.forecast.yaml'))['cities'][os.environ['CITY']]['ml_urbanheat_city_name'])")
+          # per-city facts from the registry -> shell vars. ML-UrbanHeat name
+          # (dir paths use it, not the id); simulation_name + config_path (a
+          # city with big AOI relief points at V29_forecast_lrc_pixel instead
+          # of V29_forecast).
+          python - > "$RUNNER_TEMP/city.env" <<'PY'
+          import yaml, os
+          r = yaml.safe_load(open("cities.forecast.yaml"))
+          d = r.get("defaults", {}); c = r["cities"][os.environ["CITY"]]
+          print("NAME=" + c["ml_urbanheat_city_name"])
+          print("SIM="  + c.get("simulation_name", d.get("simulation_name", "V29_forecast")))
+          print("CFG="  + c.get("config_path",    d.get("config_path", "configs/V29_forecast.yaml")))
+          PY
+          . "$RUNNER_TEMP/city.env"
           echo "ML_NAME=$NAME" >> "$GITHUB_ENV"
+          CFG_BASE="$(basename "$CFG")"
           mkdir -p "data/forecast/_spatial/$NAME" \
-                   "$ml/models/V29_forecast" "$ml/configs" \
+                   "$ml/models/$SIM" "$ml/configs" \
                    "$ml/cities/$NAME/raw_data"
           tmp="$(mktemp -d)"
           gh release download "$RELEASE_TAG" -R "${{ github.repository }}" -D "$tmp" \
-            -p "spatial-$CITY-V29_forecast.tar.gz" -p 'xgb-V29_forecast.joblib' \
-            -p 'config-V29_forecast.yaml' -p "aoi-$CITY.geojson" -p "zoi-$CITY.geojson" || true
+            -p "spatial-$CITY-V29_forecast.tar.gz" \
+            -p "xgb-$SIM.joblib" -p "config-$SIM.yaml" \
+            -p "aoi-$CITY.geojson" -p "zoi-$CITY.geojson" || true
           tar -C "data/forecast/_spatial/$NAME" -xzf "$tmp/spatial-$CITY-V29_forecast.tar.gz"
-          cp "$tmp/xgb-V29_forecast.joblib" "$ml/models/V29_forecast/XGB_model.joblib"
-          cp "$tmp/config-V29_forecast.yaml" "$ml/configs/V29_forecast.yaml"
+          cp "$tmp/xgb-$SIM.joblib"  "$ml/models/$SIM/XGB_model.joblib"
+          cp "$tmp/config-$SIM.yaml" "$ml/configs/$CFG_BASE"
           # AOI clips the prediction grid; ZOI is just a red outline on the map.
           [ -f "$tmp/aoi-$CITY.geojson" ] && \
             cp "$tmp/aoi-$CITY.geojson" "$ml/cities/$NAME/raw_data/AOI.geojson"

@@ -32,6 +32,11 @@ cities:
     value_domain_c: null
     merit_height_m: 53.904681672197675  # from cities/Patras/raw_data/era5/era5_grid_heights.json
     spatial_sim: V29_bf1000m_gradual    # its V29 resampled TIFs live under this sim, not V29_forecast
+    # Patras' AOI spans ~0..1900 m — the city-centre-only t2m_lrc baseline
+    # leaves mountain pixels ~8-9 °C too warm. Use the per-pixel lapse-rate
+    # model instead (see ML-UrbanHeat configs/V29_forecast_lrc_pixel.yaml).
+    simulation_name: V29_forecast_lrc_pixel
+    config_path: configs/V29_forecast_lrc_pixel.yaml
     enabled: true
 
 defaults:

@@ -29,20 +29,24 @@ REPO_ARG=()
 [ -n "${REPO:-}" ] && REPO_ARG=(--repo "$REPO")
 
 # ---- registry -> "id<TAB>ml_name<TAB>sim<TAB>spatial_sim<TAB>config" per city
+# sim/config are per-city (fall back to defaults) — a city with big AOI relief
+# uses V29_forecast_lrc_pixel, so its model + config ship under that name.
 mapfile -t ROWS < <(python - "$REGISTRY" "$@" <<'PY'
 import sys, yaml
 reg = yaml.safe_load(open(sys.argv[1]))
 want = set(sys.argv[2:])
 d = reg.get("defaults", {})
-sim = d.get("simulation_name", "V29_forecast")
-cfg = d.get("config_path", "configs/V29_forecast.yaml")
+dsim = d.get("simulation_name", "V29_forecast")
+dcfg = d.get("config_path", "configs/V29_forecast.yaml")
 for cid, c in reg["cities"].items():
     if not c.get("enabled", True):
         continue
     if want and cid not in want:
         continue
     print("\t".join([cid, c["ml_urbanheat_city_name"],
-                     sim, c.get("spatial_sim", sim), cfg]))
+                     c.get("simulation_name", dsim),
+                     c.get("spatial_sim", c.get("simulation_name", dsim)),
+                     c.get("config_path", dcfg)]))
 PY
 )
 [ ${#ROWS[@]} -gt 0 ] || { echo "no matching enabled cities in $REGISTRY" >&2; exit 1; }
@@ -118,6 +122,18 @@ PY
   ls -lh "$work/spatial-$ID-V29_forecast.tar.gz" | awk '{print "  "$5"  "$9}'
   uploads+=("$work/spatial-$ID-V29_forecast.tar.gz")
 
+  # model + config, keyed by this city's sim (distinct sims coexist on the
+  # Release: xgb-V29_forecast.joblib, xgb-V29_forecast_lrc_pixel.joblib, ...)
+  if [ ! -f "$work/xgb-$SIM.joblib" ]; then
+    ms="$ML/models/$SIM/XGB_model.joblib"; cs="$ML/$CFG"
+    [ -f "$ms" ] || { echo "  ! missing $ms" >&2; exit 1; }
+    [ -f "$cs" ] || { echo "  ! missing $cs" >&2; exit 1; }
+    cp "$ms" "$work/xgb-$SIM.joblib"
+    cp "$cs" "$work/config-$SIM.yaml"
+    uploads+=("$work/xgb-$SIM.joblib" "$work/config-$SIM.yaml")
+    echo "  model+config for sim=$SIM staged"
+  fi
+
   aoi_src="$(find_geojson "$NAME" AOI)"
   if [ -n "$aoi_src" ]; then
     echo "  simplifying AOI ($aoi_src)"
@@ -135,15 +151,6 @@ PY
     echo "  (no ZOI.geojson for $NAME — no red outline)"
   fi
 done
-
-# shared model + config (same for every city) — use the last row's sim/cfg
-model_src="$ML/models/$SIM/XGB_model.joblib"
-config_src="$ML/$CFG"
-[ -f "$model_src" ]  || { echo "missing $model_src" >&2;  exit 1; }
-[ -f "$config_src" ] || { echo "missing $config_src" >&2; exit 1; }
-cp "$model_src"  "$work/xgb-$SIM.joblib"
-cp "$config_src" "$work/config-$SIM.yaml"
-uploads+=("$work/xgb-$SIM.joblib" "$work/config-$SIM.yaml")
 
 echo "════════ uploading ${#uploads[@]} asset(s) to release '$TAG' ════════"
 if ! gh release view "$TAG" "${REPO_ARG[@]}" >/dev/null 2>&1; then
