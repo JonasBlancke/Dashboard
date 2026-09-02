@@ -1167,12 +1167,21 @@
       }
     }
 
-    // ---- animated wind field — a grid of drifting arrows over the map,
-    //      Windy-style. Single point vector, so the field is uniform. --------
+    // ---- animated wind field — a drifting particle field of small white
+    //      arrows. Single point vector, so the flow direction is uniform, but
+    //      each particle carries its own jittered position / length / speed /
+    //      life so the field reads as organic, not a marching grid. ----------
     const WindField = (() => {
-      let cv, ctx2, raf = 0, spd = 0, dir = 0, t = 0, dpr = 1, ro = null;
+      let cv, ctx2, raf = 0, spd = 0, dir = 0, dpr = 1, ro = null;
       let aoiRings = null;         // [[ [lng,lat], … ], …] — clip to the AOI
-      const SPACING = 58;          // px between arrows
+      let parts = [];             // particle pool
+      let lastTs = 0;
+      const DENSITY = 7500;       // one particle per ~N canvas px² (CSS px)
+      const MAX_PARTS = 320;
+      const LIFE = [1.6, 3.4];    // seconds before a particle respawns
+
+      const rand = (a, b) => a + Math.random() * (b - a);
+
       function aoiClipPath() {
         if (!aoiRings || !S.map) return null;
         const p = new Path2D();
@@ -1196,52 +1205,100 @@
         if (cv.width !== w * dpr || cv.height !== h * dpr) {
           cv.width = w * dpr; cv.height = h * dpr;
           cv.style.width = w + "px"; cv.style.height = h + "px";
+          seed(w, h);
         }
       }
-      function draw() {
+      // (re)build the particle pool for a given CSS size
+      function seed(w, h) {
+        const n = Math.max(40, Math.min(MAX_PARTS, Math.round((w * h) / DENSITY)));
+        parts = new Array(n);
+        for (let i = 0; i < n; i++) parts[i] = spawn(w, h, true);
+      }
+      function spawn(w, h, anywhere) {
+        return {
+          x: Math.random() * w,
+          y: Math.random() * h,
+          // per-particle character
+          scale: rand(0.7, 1.35),      // length / weight multiplier
+          rateJ: rand(0.75, 1.3),      // travels a bit faster / slower than its neighbours
+          sway: rand(-0.14, 0.14),     // small fixed heading offset (radians)
+          life: rand(LIFE[0], LIFE[1]),
+          age: anywhere ? Math.random() * rand(LIFE[0], LIFE[1]) : 0,
+        };
+      }
+      function draw(ts) {
+        raf = requestAnimationFrame(draw);
         if (!cv || !ctx2) return;
-        resize();                                           // keep in step with the map
-        const W = cv.width, H = cv.height, s = SPACING * dpr;
+        resize();                                    // keep in step with the map
+        const dt = lastTs ? Math.min(0.05, (ts - lastTs) / 1000) : 0.016;
+        lastTs = ts;
+        const W = cv.width, H = cv.height;
+        const wCss = W / dpr, hCss = H / dpr;
         ctx2.clearRect(0, 0, W, H);
-        if (spd <= 0.5) { raf = requestAnimationFrame(draw); return; }   // km/h
-        // clip the arrows to the AOI polygon (projected to canvas pixels)
+        if (spd <= 0.5 || !parts.length) return;     // km/h — calm: nothing to draw
+
         ctx2.save();
         const clip = aoiClipPath();
         if (clip) ctx2.clip(clip);
-        // where the wind blows TO, in canvas coords (y down)
-        const rad = ((dir + 180) % 360) * Math.PI / 180;
-        const ux = Math.sin(rad), uy = -Math.cos(rad);
-        const len = (6 + Math.min(28, spd * 0.9)) * dpr;    // arrow length by km/h
-        const drift = ((t * (0.4 + spd * 0.025)) % s);      // phase along the flow
+
+        // flow heading — where the wind blows TO, canvas coords (y down)
+        const base = ((dir + 180) % 360) * Math.PI / 180;
+        // px / second the particles travel, gently scaled by km/h
+        const flowPx = (14 + Math.min(46, spd * 1.5));
+        const len = (5 + Math.min(15, spd * 0.42));   // arrow body length (CSS px)
+
         ctx2.lineCap = "round";
-        ctx2.strokeStyle = "rgba(15,23,36,0.7)";
-        ctx2.lineWidth = 1.6 * dpr;
-        for (let gy = -s; gy < H + s; gy += s) {
-          for (let gx = -s; gx < W + s; gx += s) {
-            const cx = gx + ux * drift, cy = gy + uy * drift;
-            const bx = cx - ux * len / 2, by = cy - uy * len / 2;
-            const hx = cx + ux * len / 2, hy = cy + uy * len / 2;
-            ctx2.beginPath();
-            ctx2.moveTo(bx, by); ctx2.lineTo(hx, hy);
-            // arrowhead
-            const a = 0.42, hl = 4.5 * dpr;
-            ctx2.lineTo(hx - (ux * Math.cos(a) - uy * Math.sin(a)) * hl,
-                        hy - (uy * Math.cos(a) + ux * Math.sin(a)) * hl);
-            ctx2.moveTo(hx, hy);
-            ctx2.lineTo(hx - (ux * Math.cos(-a) - uy * Math.sin(-a)) * hl,
-                        hy - (uy * Math.cos(-a) + ux * Math.sin(-a)) * hl);
-            ctx2.stroke();
+        ctx2.lineJoin = "round";
+        ctx2.strokeStyle = "#ffffff";
+        // a soft dark halo keeps white arrows legible over the pale basemap
+        ctx2.shadowColor = "rgba(0,0,0,0.35)";
+        ctx2.shadowBlur = 2 * dpr;
+
+        for (const p of parts) {
+          p.age += dt;
+          const hdg = base + p.sway;
+          const ux = Math.sin(hdg), uy = -Math.cos(hdg);
+          p.x += ux * flowPx * p.rateJ * dt;
+          p.y += uy * flowPx * p.rateJ * dt;
+
+          // respawn on death or when it leaves the canvas
+          if (p.age >= p.life || p.x < -20 || p.x > wCss + 20 || p.y < -20 || p.y > hCss + 20) {
+            Object.assign(p, spawn(wCss, hCss, false));
+            continue;
           }
+
+          // triangular fade over life so respawns are invisible
+          const q = p.age / p.life;
+          const alpha = Math.min(1, q * 6, (1 - q) * 4) * 0.9;
+          if (alpha <= 0.02) continue;
+
+          const L = len * p.scale * dpr;
+          const cx = p.x * dpr, cy = p.y * dpr;
+          const bx = cx - ux * L * 0.5, by = cy - uy * L * 0.5;
+          const hx = cx + ux * L * 0.5, hy = cy + uy * L * 0.5;
+          const hl = Math.max(2, L * 0.34), a = 0.5;
+
+          ctx2.globalAlpha = alpha;
+          ctx2.lineWidth = (0.9 + 0.5 * p.scale) * dpr;
+          ctx2.beginPath();
+          ctx2.moveTo(bx, by);
+          ctx2.lineTo(hx, hy);
+          ctx2.lineTo(hx - (ux * Math.cos(a) - uy * Math.sin(a)) * hl,
+                      hy - (uy * Math.cos(a) + ux * Math.sin(a)) * hl);
+          ctx2.moveTo(hx, hy);
+          ctx2.lineTo(hx - (ux * Math.cos(-a) - uy * Math.sin(-a)) * hl,
+                      hy - (uy * Math.cos(-a) + ux * Math.sin(-a)) * hl);
+          ctx2.stroke();
         }
+        ctx2.globalAlpha = 1;
+        ctx2.shadowBlur = 0;
         ctx2.restore();
-        t += 1;
-        raf = requestAnimationFrame(draw);
       }
       return {
         attach() {
           cv = g("fcWindField"); if (!cv) return;
           ctx2 = cv.getContext("2d");
-          cv.hidden = false; resize();
+          cv.hidden = false; lastTs = 0; resize();
           window.addEventListener("resize", resize);
           if (!ro && "ResizeObserver" in window) {
             ro = new ResizeObserver(resize);
