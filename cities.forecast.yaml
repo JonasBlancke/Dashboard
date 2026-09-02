@@ -1,13 +1,14 @@
 # ── Live Forecast city registry ─────────────────────────────────────────
-# This file IS the list of cities the daily forecast + the Release-staging
-# script iterate over. Add a city = one block here, then:
+# This file IS the list of cities the daily forecast + scripts/refresh_forecasts.sh
+# iterate over. Add a city = one block here, then:
 #   1. cache its merit_height_m (one Earth-Engine lookup, done once)
 #   2. make sure ML-UrbanHeat has, for that city:
 #        cities/<Name>/processed_data/<spatial_sim>/spatial/   (resampled TIFs
 #          + default_grid.tif; `spatial_sim` defaults to `simulation_name`)
 #        cities/<Name>/raw_data/AOI.geojson   (required — clips the grid)
 #        cities/<Name>/raw_data/ZOI.geojson   (optional — red outline only)
-#   3. run `bash scripts/stage_v29_assets.sh`  (stages every enabled city)
+#   3. bash scripts/refresh_forecasts.sh <id>   (local: run + commit + push)
+#      and/or bash scripts/stage_v29_assets.sh <id>   (for the daily CI)
 # No code changes.
 
 cities:
@@ -31,17 +32,17 @@ cities:
     has_local_observations: true
     value_domain_c: null
     merit_height_m: 53.904681672197675  # from cities/Patras/raw_data/era5/era5_grid_heights.json
-    spatial_sim: V29_bf1000m_gradual    # its V29 resampled TIFs live under this sim, not V29_forecast
-    # Patras' AOI spans ~0..1900 m — the city-centre-only t2m_lrc baseline
-    # leaves mountain pixels ~8-9 °C too warm. Use the per-pixel lapse-rate
-    # model instead (see ML-UrbanHeat configs/V29_forecast_lrc_pixel.yaml).
-    simulation_name: V29_forecast_lrc_pixel
-    config_path: configs/V29_forecast_lrc_pixel.yaml
+    spatial_sim: V29_bf1000m_gradual    # its V29 resampled TIFs live under this sim
     enabled: true
 
 defaults:
-  simulation_name: V29_forecast
-  config_path: configs/V29_forecast.yaml
+  # Every city uses the per-pixel lapse-rate model. It corrects the ECMWF-grid
+  # baseline first to the city-centre MERIT-DEM height (one scalar) and then,
+  # per pixel, by 0.0065 °C/m of (centre − pixel) elevation — so cities with
+  # real relief in the AOI (Patras, ~1900 m) read right, and flat ones (Ghent,
+  # ~3 m spread) are unchanged to <0.02 °C.
+  simulation_name: V29_forecast_lrc_pixel
+  config_path: configs/V29_forecast_lrc_pixel.yaml
   forecast_days: 16                    # ECMWF-IFS horizon via Open-Meteo
   warmup_hours: 24                     # matches the model's rolling windows — do not change
   frame_hours: 72                      # hourly map PNGs for the coming N hours
