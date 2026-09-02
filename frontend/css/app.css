@@ -479,6 +479,9 @@ input[type="range"]::-webkit-slider-thumb {
 
 /* precipitation forecast chart */
 .fc-precip { margin: 0; border-top: 1px solid var(--stroke); padding-top: 8px; }
+/* hide it while the point selector is open — it has its own chart, and it
+   would otherwise sit under the advisor panel and block the time slider */
+#fcStage.picking-active .fc-precip { display: none; }
 .fc-precip figcaption {
   display: flex; justify-content: space-between;
   font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase;
@@ -537,10 +540,11 @@ input[type="range"]::-webkit-slider-thumb {
 #fcMap.is-picking { cursor: crosshair; }
 
 .fc-advisor {
-  position: absolute; left: 16px; right: 16px; bottom: 96px; z-index: 5;
+  /* sit directly above the (now-slim) scrubber, never over it */
+  position: absolute; left: 16px; right: 16px; bottom: 84px; z-index: 5;
   border-radius: var(--radius); padding: 14px 16px 12px;
   display: flex; flex-direction: column; gap: 10px;
-  max-height: calc(100vh - 220px); overflow-y: auto;
+  max-height: calc(100vh - 260px); overflow-y: auto;
 }
 .fc-advisor[hidden] { display: none; }
 .fa-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }

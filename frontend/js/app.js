@@ -1284,6 +1284,7 @@
       if (S.marker) { try { S.marker.remove(); } catch (e) {} S.marker = null; }
       S.adv.lngLat = null; S.adv.series = null;
       g("fcAdvisor").hidden = true;
+      g("fcStage").classList.remove("picking-active");
     }
 
     function pickPoint(lngLat) {
@@ -1303,6 +1304,7 @@
       S.adv.lngLat = lngLat;
       S.adv.series = series;
       g("fcAdvisor").hidden = false;
+      g("fcStage").classList.add("picking-active");
       renderAdvisor();
     }
 
