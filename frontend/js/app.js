@@ -719,6 +719,8 @@
       frame: 0, playing: false, timer: null, values: null,
       frameMean: null, uhi: null, cities: [], mode: "absolute",
       layers: { forecast: true, basemap: true, buildings: true, trees: false, water: true, wind: true },
+      // precipitation chart — user can hide it; choice persists
+      precipHidden: (() => { try { return localStorage.getItem("fcPrecipHidden") === "1"; } catch (e) { return false; } })(),
       // point selector
       picking: false, marker: null, adv: { lngLat: null, indoor: 24, goal: "cool", series: null },
     };
@@ -748,6 +750,10 @@
       const fcMode = g("fcMode");
       if (fcMode) fcMode.querySelectorAll(".fl-chip").forEach((c) =>
         c.addEventListener("click", () => setMode(c.dataset.mode)));
+      // precipitation chart — hide / show toggle (persisted)
+      g("fcPrecipClose").addEventListener("click", () => setPrecipHidden(true));
+      g("fcPrecipShow").addEventListener("click", () => setPrecipHidden(false));
+      applyPrecipHidden();
       // point selector
       g("fcPickBtn").addEventListener("click", togglePick);
       g("fcAdvisorClose").addEventListener("click", clearPoint);
@@ -857,8 +863,10 @@
     function renderPrecip() {
       const fig = g("fcPrecip"), svg = g("fcPrecipSvg");
       const p = S.ctxSeries && S.ctxSeries.precip_mm;
-      if (!p || !p.some((v) => v != null)) { fig.hidden = true; return; }
-      fig.hidden = false;
+      S.precipAvail = !!(p && p.some((v) => v != null));
+      if (!S.precipAvail) { fig.hidden = true; applyPrecipHidden(); return; }
+      applyPrecipHidden();
+      if (S.precipHidden) return;
       const n = p.length, W = 620, H = 120, padB = 16, padT = 6;
       const peak = Math.max(...p.map((v) => v || 0));
       // y-scale snaps to the smallest band ceiling that fits the peak
@@ -900,6 +908,20 @@
       const yl = g("fcPrecipY");
       if (yl) yl.innerHTML = `<span>${yMax}</span><span>${(yMax / 2)}</span><span>0</span>`;
       g("fcPrecip").dataset.ymax = yMax;
+    }
+
+    // show/hide the precipitation chart; keep the "show" chip in sync
+    function setPrecipHidden(hidden) {
+      S.precipHidden = hidden;
+      try { localStorage.setItem("fcPrecipHidden", hidden ? "1" : "0"); } catch (e) {}
+      if (!hidden) renderPrecip();
+      applyPrecipHidden();
+    }
+    function applyPrecipHidden() {
+      const avail = !!S.precipAvail;
+      g("fcPrecip").hidden = !avail || S.precipHidden;
+      g("fcPrecipShow").hidden = !avail || !S.precipHidden;
+      if (S.precipHidden) { g("fcPrecipSvg").innerHTML = ""; }
     }
 
     // per-frame city-mean air temp (NaN-aware), from values.bin

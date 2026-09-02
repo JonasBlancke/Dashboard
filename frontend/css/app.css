@@ -27,6 +27,7 @@ body {
   background: var(--bg-0);
   color: var(--text-0);
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;   /* backstop against stray 100vw children */
 }
 
 .glass {
@@ -41,6 +42,7 @@ body {
   display: block;
   padding-left: 358px;         /* room for the fixed sidebar */
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* ─────────────── Sidebar (fixed) ─────────────── */
@@ -179,6 +181,7 @@ input[type="range"]::-webkit-slider-thumb {
 .city-view {
   position: relative;
   height: calc(100vh - 28px);
+  height: calc(100dvh - 28px);
   border-radius: var(--radius); overflow: hidden;
   border: 1px solid var(--stroke); background: #0b0f15;
   transition: height 0.32s cubic-bezier(0.22, 1, 0.36, 1);
@@ -189,7 +192,7 @@ input[type="range"]::-webkit-slider-thumb {
    lines can span from the hex on it down to the detail map just below. */
 .stage.has-detail .city-view {
   position: sticky; top: 14px; z-index: 6;
-  height: 32vh; min-height: 240px;
+  height: 32dvh; min-height: 240px;
 }
 .stage.has-detail .map-hint { display: none; }
 
@@ -201,7 +204,7 @@ input[type="range"]::-webkit-slider-thumb {
   font-size: 10px; font-weight: 700; letter-spacing: 0.14em;
   text-transform: uppercase; color: var(--accent-warm);
 }
-.cc-title { font-size: 22px; font-weight: 800; margin: 4px 0 7px; letter-spacing: -0.01em; }
+.cc-title { font-size: clamp(17px, 4.5vw, 22px); font-weight: 800; margin: 4px 0 7px; letter-spacing: -0.01em; }
 .cc-body { font-size: 12px; line-height: 1.6; color: var(--text-1); }
 
 .map-hint {
@@ -246,7 +249,7 @@ input[type="range"]::-webkit-slider-thumb {
   font-size: 10px; font-weight: 700; letter-spacing: 0.13em;
   text-transform: uppercase; color: var(--accent-warm);
 }
-.dh-title { font-size: 20px; font-weight: 800; margin: 4px 0 6px; }
+.dh-title { font-size: clamp(16px, 4vw, 20px); font-weight: 800; margin: 4px 0 6px; }
 .dh-body { font-size: 12.5px; color: var(--text-1); line-height: 1.55; max-width: 640px; }
 .detail-close {
   flex: none; border: 1px solid var(--stroke); background: var(--bg-2);
@@ -271,7 +274,7 @@ input[type="range"]::-webkit-slider-thumb {
 .detail-map {
   /* the sticky city map (~32vh) sits above; leave room for it + the detail
      header / caption / colourbar so the whole detail fits one screen. */
-  position: relative; height: calc(68vh - 150px); min-height: 380px;
+  position: relative; height: calc(68dvh - 150px); min-height: 380px;
   border-radius: var(--radius); overflow: hidden;
   border: 1px solid var(--stroke); background: #0b0f15;
 }
@@ -324,9 +327,6 @@ input[type="range"]::-webkit-slider-thumb {
 
 .legend-img { width: 100%; border-radius: var(--radius-sm); background: #fff; padding: 10px 12px; }
 
-@media (max-width: 1180px) {
-  .detail-map { height: 70vh; }
-}
 
 /* small inline label qualifier, e.g. "present-day" next to a field label */
 .lbl-note {
@@ -373,7 +373,7 @@ input[type="range"]::-webkit-slider-thumb {
 
 /* connector lines — full-viewport overlay, drawn from JS */
 .hex-link {
-  position: fixed; inset: 0; width: 100vw; height: 100vh;
+  position: fixed; inset: 0; width: 100%; height: 100%;
   pointer-events: none; z-index: 15;
 }
 .hex-link[hidden] { display: none; }
@@ -381,11 +381,6 @@ input[type="range"]::-webkit-slider-thumb {
   stroke: #000; stroke-width: 1; stroke-dasharray: 3 4; opacity: 0.55;
 }
 .hex-link .hl-halo { stroke: rgba(255,255,255,0.5); stroke-width: 3; stroke-dasharray: none; opacity: 0.5; }
-@media (max-width: 900px) {
-  #app { padding-left: 0; }
-  .sidebar { position: static; width: auto; height: auto; margin: 10px; }
-  .city-view { height: 70vh; }
-}
 
 /* ─────────────── Live Forecast tab ─────────────── */
 #fcStage .city-view { position: relative; background: #eef1f4; }
@@ -483,11 +478,26 @@ input[type="range"]::-webkit-slider-thumb {
    would otherwise sit under the advisor panel and block the time slider */
 #fcStage.picking-active .fc-precip { display: none; }
 .fc-precip figcaption {
-  display: flex; justify-content: space-between;
+  display: flex; align-items: center; gap: 10px;
   font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase;
   color: var(--text-2); margin-bottom: 5px;
 }
-.fc-precip figcaption span:last-child { font-family: var(--mono); letter-spacing: 0; font-weight: 700; }
+#fcPrecipNow { font-family: var(--mono); letter-spacing: 0; font-weight: 700; margin-left: auto; }
+.fc-precip-close {
+  flex: none; border: 1px solid var(--stroke); background: var(--bg-2);
+  color: var(--text-2); font: inherit; font-size: 11px; line-height: 1;
+  width: 22px; height: 22px; border-radius: 6px; cursor: pointer;
+}
+.fc-precip-close:hover { color: var(--text-0); border-color: var(--text-2); }
+.fc-precip-show {
+  margin-top: 6px; align-self: flex-start;
+  border: 1px solid var(--stroke); background: var(--bg-2); color: var(--text-1);
+  font: inherit; font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em;
+  padding: 7px 11px; border-radius: var(--radius-sm); cursor: pointer;
+}
+.fc-precip-show:hover { color: var(--text-0); border-color: var(--accent); }
+.fc-precip-show[hidden] { display: none; }
+#fcStage.picking-active .fc-precip-show { display: none; }
 .fp-plot { position: relative; padding-right: 26px; }
 #fcPrecipSvg { width: 100%; height: 96px; display: block; }
 .fp-yaxis {
@@ -605,9 +615,6 @@ input[type="range"]::-webkit-slider-thumb {
   transform: rotate(-45deg); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
 }
 
-@media (max-width: 900px) {
-  .fc-advisor { position: static; margin: 10px 0 0; max-height: none; }
-}
 
 
 
@@ -788,3 +795,132 @@ input[type="range"]::-webkit-slider-thumb {
   border: 1px solid var(--stroke); border-radius: var(--radius-sm);
 }
 .chip-multi button.is-on { color: var(--bg-0); background: var(--accent); border-color: var(--accent); }
+
+
+/* ============================================================
+   Responsive — three breakpoints
+     ≤1024px  tablet / small laptop : stack the sidebar, lift the
+              Live-Forecast overlay panels out from over the map
+     ≤640px   phone                 : single-column grids, tighter type
+     ≤400px   narrow phone          : stack input rows, trim padding
+   ============================================================ */
+
+/* ---------- ≤1024px : stacked shell ---------- */
+@media (max-width: 1024px) {
+  #app { padding-left: 0; }
+
+  .sidebar {
+    position: static; width: auto; height: auto;
+    margin: 10px; border-radius: var(--radius);
+    max-height: none; overscroll-behavior: contain;
+  }
+
+  .stage { padding: 10px; }
+
+  .city-view { height: 62vh; height: 62dvh; min-height: 340px; }
+
+  /* detail no longer needs the sticky-map choreography — let it flow */
+  .stage.has-detail .city-view {
+    position: relative; top: auto; height: 52vh; height: 52dvh; min-height: 300px;
+  }
+  .detail-map { height: 60vh; height: 60dvh; min-height: 320px; }
+  .hex-link { display: none; }   /* connector lines assume the two maps are stacked in-viewport */
+
+  /* --- Live Forecast: de-overlay the floating panels ---
+     the map is absolutely positioned inside .city-view, so switch the view
+     to flow layout: give #fcMap an explicit height (it reserves space) and
+     let the panels below stack under it instead of covering it. */
+  #fcStage .city-view {
+    height: auto; min-height: 0; overflow: visible;
+    border: 0; background: transparent; border-radius: 0;
+    display: grid;   /* row 1 = map (+ overlaid canvas / card); panels flow below */
+    grid-template-columns: 1fr;
+  }
+  #fcMap {
+    position: relative; inset: auto; grid-area: 1 / 1;
+    height: 56vh; height: 56dvh; min-height: 320px;
+    border-radius: var(--radius); overflow: hidden;
+    border: 1px solid var(--stroke); background: #0b0f15;
+  }
+  #fcStage .fc-windfield {
+    position: relative; inset: auto; grid-area: 1 / 1;
+    width: 100%; height: 100%; border-radius: var(--radius);
+  }
+
+  .fc-topright {
+    position: static; flex-direction: row; flex-wrap: wrap;
+    align-items: flex-start; margin: 10px 0 0; gap: 8px;
+  }
+  .fc-topright > * { flex: 1 1 150px; min-width: 0; align-items: stretch; }
+  .fc-pick-btn { flex: 1 1 150px; align-self: flex-start; }
+  .fs-item { align-items: flex-start; }
+
+  .fc-wind, .fc-readout {
+    position: static; margin: 10px 0 0; align-self: stretch;
+  }
+  .fc-readout.is-hidden { display: none; }
+
+  .fc-scrubber { position: static; margin: 10px 0 0; left: auto; right: auto; bottom: auto; }
+
+  .fc-advisor {
+    position: static; margin: 10px 0 0; left: auto; right: auto; bottom: auto;
+    max-height: none; overscroll-behavior: contain;
+  }
+
+  /* keep the title card on the map but slim it so it doesn't blanket a
+     phone-width viewport */
+  .city-card {
+    top: 8px; left: 8px; right: 8px; max-width: none; padding: 10px 12px;
+  }
+  .city-card .cc-body { display: none; }
+  .map-hint { display: none; }
+}
+
+/* ---------- ≤640px : phone ---------- */
+@media (max-width: 640px) {
+  .sidebar { margin: 8px; padding: 14px 12px 10px; overflow-x: hidden; }
+  .stage { padding: 8px; }
+
+  /* keep nowrap control rows from forcing the sidebar wider than the screen */
+  .tabs { flex-wrap: wrap; }
+  .tab { flex: 1 1 30%; min-width: 0; font-size: 11px; padding: 8px 4px; }
+  .segmented { flex-wrap: wrap; }
+  .segmented button { flex: 1 1 30%; min-width: 0; white-space: normal; }
+  .hb-ticks span, .cb-tick, .db-ticks { font-size: 9px; }
+
+  /* single-column analysis grids */
+  .epw-analysis-grid { grid-template-columns: 1fr; }
+  .epw-stats { grid-template-columns: 1fr; }
+
+  /* forecast point-selector controls stack */
+  .fa-controls { flex-direction: column; align-items: stretch; }
+  .fa-ctl { width: 100%; }
+  .fa-ctl input[type="number"], .fa-ctl .segmented.small { width: 100%; min-width: 0; }
+
+  /* modal goes full-bleed */
+  .epw-modal { padding: 12px 8px; }
+  .epw-modal-card { width: 100%; }
+  .epw-modal-body { max-height: none; }
+
+  .epw-cta-btn { width: 100%; padding: 14px 20px; }
+
+  .detail { padding: 14px 12px 16px; }
+}
+
+/* ---------- ≤400px : narrow phone ---------- */
+@media (max-width: 400px) {
+  .rq-range { flex-direction: column; align-items: stretch; }
+  .rq-range input, .rq-inline input { width: 100%; }
+
+  .fc-scrub-row { grid-template-columns: auto 1fr; row-gap: 8px; }
+  .fc-scrub-row input[type="range"] { grid-column: 1 / -1; }
+
+  .brand-sub { display: none; }
+}
+
+/* ---------- touch devices : bigger targets, drop hover-only hints ---------- */
+@media (pointer: coarse) {
+  .tab, .segmented button, .fl-chip, .hood-nav button,
+  .toggle-row, .chip-multi button { min-height: 40px; }
+  .map-hint, .dm-hint { display: none; }
+}

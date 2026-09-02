@@ -474,12 +474,14 @@
             <figcaption>
               <span>Precipitation · mm/h</span>
               <span id="fcPrecipNow">—</span>
+              <button class="fc-precip-close" id="fcPrecipClose" aria-label="Hide precipitation chart">✕</button>
             </figcaption>
             <div class="fp-plot">
               <svg id="fcPrecipSvg" viewBox="0 0 620 120" preserveAspectRatio="none"></svg>
               <div class="fp-yaxis" id="fcPrecipY"></div>
             </div>
           </figure>
+          <button class="fc-precip-show" id="fcPrecipShow" hidden>Show precipitation chart</button>
         </div>
 
         <!-- Point selector — appears below the scrubber when a point is picked -->
