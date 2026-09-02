@@ -1221,7 +1221,6 @@
           // per-particle character
           scale: rand(0.7, 1.35),      // length / weight multiplier
           rateJ: rand(0.75, 1.3),      // travels a bit faster / slower than its neighbours
-          sway: rand(-0.14, 0.14),     // small fixed heading offset (radians)
           life: rand(LIFE[0], LIFE[1]),
           age: anywhere ? Math.random() * rand(LIFE[0], LIFE[1]) : 0,
         };
@@ -1241,23 +1240,23 @@
         const clip = aoiClipPath();
         if (clip) ctx2.clip(clip);
 
-        // flow heading — where the wind blows TO, canvas coords (y down)
-        const base = ((dir + 180) % 360) * Math.PI / 180;
+        // flow heading — where the wind blows TO, canvas coords (y down).
+        // Uniform for every arrow: only position / size / speed are jittered.
+        const hdg = ((dir + 180) % 360) * Math.PI / 180;
+        const ux = Math.sin(hdg), uy = -Math.cos(hdg);
         // px / second the particles travel, gently scaled by km/h
         const flowPx = (14 + Math.min(46, spd * 1.5));
         const len = (5 + Math.min(15, spd * 0.42));   // arrow body length (CSS px)
 
         ctx2.lineCap = "round";
         ctx2.lineJoin = "round";
-        ctx2.strokeStyle = "#ffffff";
-        // a soft dark halo keeps white arrows legible over the pale basemap
-        ctx2.shadowColor = "rgba(0,0,0,0.35)";
-        ctx2.shadowBlur = 2 * dpr;
+        ctx2.strokeStyle = "rgba(10,14,20,0.9)";
+        // a faint light halo so the dark arrows read over the dark heat overlay
+        ctx2.shadowColor = "rgba(255,255,255,0.55)";
+        ctx2.shadowBlur = 2.5 * dpr;
 
         for (const p of parts) {
           p.age += dt;
-          const hdg = base + p.sway;
-          const ux = Math.sin(hdg), uy = -Math.cos(hdg);
           p.x += ux * flowPx * p.rateJ * dt;
           p.y += uy * flowPx * p.rateJ * dt;
 
