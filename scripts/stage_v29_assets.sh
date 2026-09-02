@@ -69,7 +69,7 @@ import sys, json, os
 from shapely.geometry import shape, mapping
 from shapely.ops import unary_union
 src, out = sys.argv[1:3]
-gj = json.load(open(src))
+gj = json.load(open(src, encoding="utf-8-sig"))
 feats = gj.get("features", [gj])
 geom = unary_union([shape(f.get("geometry", f)) for f in feats]).buffer(0)
 geom = geom.simplify(0.0003, preserve_topology=True)   # ~30 m
