@@ -190,15 +190,23 @@ jobs:
           fi
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # add only paths that exist — `previous/` is absent on a city's first run
-          for p in "$d/latest" "$d/previous" data/forecast/manifest.json; do
+          # Commit ONLY this city's frames — never manifest.json. Sibling matrix
+          # jobs regenerate the manifest too, so committing it here always
+          # conflicts on rebase. It is rebuilt from every */latest/meta.json
+          # after the pull, below.
+          for p in "$d/latest" "$d/previous"; do
             [ -e "$p" ] && git add -f "$p"
           done
-          if git diff --cached --quiet; then echo "no file changes"; exit 0; fi
+          if git diff --cached --quiet; then echo "no city-frame changes"; exit 0; fi
           git commit -m "chore(data): ${{ matrix.city }} forecast ${new_issue%%T*}"
-          for attempt in 1 2 3; do
-            git pull --rebase --autostash && git push && exit 0
-            echo "push attempt $attempt failed — retrying"; sleep 5
+          for attempt in 1 2 3 4 5; do
+            if git pull --rebase --autostash; then
+              python pipeline/build_manifest.py
+              git add -f data/forecast/manifest.json
+              git diff --cached --quiet || git commit --amend --no-edit
+              git push && { echo "pushed"; exit 0; }
+            fi
+            echo "push attempt $attempt failed — retrying"; git rebase --abort 2>/dev/null || true; sleep $((attempt*4))
           done
           exit 1
 
