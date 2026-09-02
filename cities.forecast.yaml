@@ -35,6 +35,30 @@ cities:
     spatial_sim: V29_bf1000m_gradual    # its V29 resampled TIFs live under this sim
     enabled: true
 
+  dublin:
+    ml_urbanheat_city_name: Dublin
+    display_name: Dublin
+    country: Ireland
+    timezone: Europe/Dublin
+    center: { lat: 53.3442, lon: -6.2265 }
+    has_local_observations: true
+    value_domain_c: null
+    merit_height_m: 4.030063184345875   # cities/Dublin/raw_data/era5/era5_grid_heights.json
+    spatial_sim: V29_bf1000m_gradual
+    enabled: true
+
+  wellington:
+    ml_urbanheat_city_name: Wellington
+    display_name: Wellington
+    country: New Zealand
+    timezone: Pacific/Auckland
+    center: { lat: -41.31, lon: 174.785 }
+    has_local_observations: true
+    value_domain_c: null
+    merit_height_m: 45.61449978284906   # cities/Wellington/raw_data/era5/era5_grid_heights.json
+    spatial_sim: V29_bf1000m_gradual
+    enabled: true
+
 defaults:
   # Every city uses the per-pixel lapse-rate model. It corrects the ECMWF-grid
   # baseline first to the city-centre MERIT-DEM height (one scalar) and then,
