@@ -1,0 +1,19 @@
+name = "dashboard-forecast-cron"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# 04:43 UTC daily — matches the (unreliable) GitHub cron in
+# .github/workflows/daily-forecast.yml, but Cloudflare actually fires on time.
+[triggers]
+crons = ["43 4 * * *"]
+
+[vars]
+GH_OWNER = "JonasBlancke"
+GH_REPO = "Dashboard"
+GH_WORKFLOW = "daily-forecast.yml"
+GH_REF = "main"
+
+# Secrets are NOT set here. Run once, locally:
+#   cd ops/forecast-cron
+#   npx wrangler secret put GH_TOKEN        # paste the fine-grained PAT
+#   npx wrangler secret put SHARED_SECRET   # optional: any random string, enables POST /run
