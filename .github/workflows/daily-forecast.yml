@@ -22,7 +22,10 @@ name: daily-forecast
 
 on:
   schedule:
-    - cron: "0 6 * * *"          # 06:00 UTC — after the ECMWF 00Z run lands on Open-Meteo
+    # 04:43 UTC — off the top of the hour so GitHub's shared cron queue is
+    # lighter (whole-hour schedules get delayed hours or skipped); still late
+    # enough that the ECMWF 00Z run has landed on Open-Meteo (~04:00 UTC).
+    - cron: "43 4 * * *"
   workflow_dispatch:
     inputs:
       city:  { description: "city id (default: all enabled)", required: false }
