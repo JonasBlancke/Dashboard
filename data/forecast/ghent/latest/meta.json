@@ -3,15 +3,15 @@
   "display_name": "Ghent",
   "simulation_name": "V29_forecast_lrc_pixel",
   "forecast_model": "ecmwf_ifs",
-  "forecast_issue_time_utc": "2026-09-03T10:37:36Z",
-  "fetch_time_utc": "2026-09-03T10:37:36Z",
-  "run_time_utc": "2026-09-03T10:40:30Z",
-  "source_nc": "ta_abs_2026-09-03_to_2026-09-18_issued20260903T103736Z.nc",
-  "source_nc_sha256": "e18b8bd7268bc09729274b98fe1eab52551b22538e5aeb0ae38f67d7f65afa1b",
+  "forecast_issue_time_utc": "2026-09-03T11:02:29Z",
+  "fetch_time_utc": "2026-09-03T11:02:29Z",
+  "run_time_utc": "2026-09-03T11:05:21Z",
+  "source_nc": "ta_abs_2026-09-03_to_2026-09-18_issued20260903T110229Z.nc",
+  "source_nc_sha256": "24505960ec3a983a6ae07b7492f1ba72f9acf61a2670d9bb8c9ebce27e5e124e",
   "time_start_utc": "2026-09-03T00:00:00Z",
   "time_end_utc": "2026-09-18T00:00:00Z",
   "n_hours": 361,
-  "frame_start_index": 11,
+  "frame_start_index": 12,
   "n_frames": 72,
   "timezone": "Europe/Brussels",
   "grid_crs": "EPSG:32631",
@@ -49,10 +49,6 @@
       "min_span_c": 2.0,
       "rescale": "per_frame: coldest pixel -> 0, warmest -> 1",
       "per_frame_domain_c": [
-        [
-          21.36,
-          23.36
-        ],
         [
           22.36,
           24.36
@@ -336,6 +332,10 @@
         [
           19.08,
           21.6
+        ],
+        [
+          20.27,
+          22.73
         ]
       ]
     }
@@ -355,12 +355,6 @@
     ]
   },
   "frames": [
-    {
-      "utc": "2026-09-03T11:00:00Z",
-      "local": "2026-09-03 13:00",
-      "hour_local": 13,
-      "day": 1
-    },
     {
       "utc": "2026-09-03T12:00:00Z",
       "local": "2026-09-03 14:00",
@@ -785,6 +779,12 @@
       "utc": "2026-09-06T10:00:00Z",
       "local": "2026-09-06 12:00",
       "hour_local": 12,
+      "day": 4
+    },
+    {
+      "utc": "2026-09-06T11:00:00Z",
+      "local": "2026-09-06 13:00",
+      "hour_local": 13,
       "day": 4
     }
   ],
