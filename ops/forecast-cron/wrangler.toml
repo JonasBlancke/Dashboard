@@ -2,10 +2,10 @@ name = "dashboard-forecast-cron"
 main = "worker.js"
 compatibility_date = "2025-01-01"
 
-# 04:43 UTC daily — matches the (unreliable) GitHub cron in
-# .github/workflows/daily-forecast.yml, but Cloudflare actually fires on time.
+# TEMPORARY: 11:00 UTC = 13:00 Brussels, for a same-day smoke test.
+# Revert to "43 4 * * *" (04:43 UTC ≈ 06:43 Brussels) once verified.
 [triggers]
-crons = ["43 4 * * *"]
+crons = ["0 11 * * *"]
 
 [vars]
 GH_OWNER = "JonasBlancke"
