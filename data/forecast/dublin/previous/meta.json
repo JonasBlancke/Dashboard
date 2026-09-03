@@ -3,15 +3,15 @@
   "display_name": "Dublin",
   "simulation_name": "V29_forecast_lrc_pixel",
   "forecast_model": "ecmwf_ifs",
-  "forecast_issue_time_utc": "2026-09-03T10:50:48Z",
-  "fetch_time_utc": "2026-09-03T10:50:48Z",
-  "run_time_utc": "2026-09-03T10:52:57Z",
-  "source_nc": "ta_abs_2026-09-03_to_2026-09-18_issued20260903T105048Z.nc",
-  "source_nc_sha256": "2351a57e10239df64a2d95f221a583432c665931e7b2336928aef864dae6e704",
+  "forecast_issue_time_utc": "2026-09-03T11:16:00Z",
+  "fetch_time_utc": "2026-09-03T11:16:00Z",
+  "run_time_utc": "2026-09-03T11:18:10Z",
+  "source_nc": "ta_abs_2026-09-03_to_2026-09-18_issued20260903T111600Z.nc",
+  "source_nc_sha256": "a21fd92d3a3a2b13d7b14ac75f80d42ad7f69b3b9743f1e1b04ead2df441852b",
   "time_start_utc": "2026-09-03T00:00:00Z",
   "time_end_utc": "2026-09-18T00:00:00Z",
   "n_hours": 361,
-  "frame_start_index": 11,
+  "frame_start_index": 12,
   "n_frames": 72,
   "timezone": "Europe/Dublin",
   "grid_crs": "EPSG:32629",
@@ -49,10 +49,6 @@
       "min_span_c": 2.0,
       "rescale": "per_frame: coldest pixel -> 0, warmest -> 1",
       "per_frame_domain_c": [
-        [
-          17.76,
-          19.76
-        ],
         [
           18.56,
           20.56
@@ -336,6 +332,10 @@
         [
           17.63,
           19.63
+        ],
+        [
+          18.57,
+          20.57
         ]
       ]
     }
@@ -355,12 +355,6 @@
     ]
   },
   "frames": [
-    {
-      "utc": "2026-09-03T11:00:00Z",
-      "local": "2026-09-03 12:00",
-      "hour_local": 12,
-      "day": 1
-    },
     {
       "utc": "2026-09-03T12:00:00Z",
       "local": "2026-09-03 13:00",
@@ -785,6 +779,12 @@
       "utc": "2026-09-06T10:00:00Z",
       "local": "2026-09-06 11:00",
       "hour_local": 11,
+      "day": 4
+    },
+    {
+      "utc": "2026-09-06T11:00:00Z",
+      "local": "2026-09-06 12:00",
+      "hour_local": 12,
       "day": 4
     }
   ],
