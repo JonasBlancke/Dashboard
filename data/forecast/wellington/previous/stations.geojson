@@ -1,0 +1,8 @@
+{
+  "type": "FeatureCollection",
+  "features": [],
+  "properties": {
+    "city": "wellington",
+    "empty_reason": "no station provider wired yet - intended source: NIWA CliFlo or Greater Wellington RC environmental data API"
+  }
+}
