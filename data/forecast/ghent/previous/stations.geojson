@@ -1,0 +1,125 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.749,
+          51.109
+        ]
+      },
+      "properties": {
+        "slug": "honda",
+        "name": "MOCCA Honda",
+        "provider": "vlinder",
+        "n_points_5min": 576,
+        "n_points_hourly": 49,
+        "first_time": "2026-09-05T08:15:00+00:00",
+        "last_time": "2026-09-07T08:10:00+00:00"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.72247,
+          51.0357
+        ]
+      },
+      "properties": {
+        "slug": "plantentuin",
+        "name": "MOCCA Plantentuin",
+        "provider": "vlinder",
+        "n_points_5min": 576,
+        "n_points_hourly": 49,
+        "first_time": "2026-09-05T08:15:00+00:00",
+        "last_time": "2026-09-07T08:10:00+00:00"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.727799,
+          51.0512
+        ]
+      },
+      "properties": {
+        "slug": "provinciehuis",
+        "name": "MOCCA Provinciehuis",
+        "provider": "vlinder",
+        "n_points_5min": 576,
+        "n_points_hourly": 49,
+        "first_time": "2026-09-05T08:15:00+00:00",
+        "last_time": "2026-09-07T08:10:00+00:00"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.727466,
+          51.043163
+        ]
+      },
+      "properties": {
+        "slug": "tweekerken",
+        "name": "MOCCA Tweekerken",
+        "provider": "vlinder",
+        "n_points_5min": 576,
+        "n_points_hourly": 49,
+        "first_time": "2026-09-05T08:15:00+00:00",
+        "last_time": "2026-09-07T08:10:00+00:00"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.709695,
+          51.022379
+        ]
+      },
+      "properties": {
+        "slug": "vlinder02",
+        "name": "Sterre",
+        "provider": "vlinder",
+        "n_points_5min": 573,
+        "n_points_hourly": 49,
+        "first_time": "2026-09-05T08:15:00+00:00",
+        "last_time": "2026-09-07T08:10:00+00:00"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          3.702875,
+          51.084
+        ]
+      },
+      "properties": {
+        "slug": "wondelgem",
+        "name": "MOCCA Wondelgem",
+        "provider": "vlinder",
+        "n_points_5min": 576,
+        "n_points_hourly": 49,
+        "first_time": "2026-09-05T08:15:00+00:00",
+        "last_time": "2026-09-07T08:10:00+00:00"
+      }
+    }
+  ],
+  "properties": {
+    "city": "ghent",
+    "window_start": "2026-09-05T08:14:13Z",
+    "window_end": "2026-09-07T08:14:13Z",
+    "fetched_at": "2026-09-07T08:14:27Z"
+  }
+}
