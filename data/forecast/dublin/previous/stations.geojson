@@ -1,0 +1,8 @@
+{
+  "type": "FeatureCollection",
+  "features": [],
+  "properties": {
+    "city": "dublin",
+    "empty_reason": "no station provider wired yet - intended source: Met \u00c9ireann hourly SYNOP (data.gov.ie) or Weather Underground PWS"
+  }
+}
