@@ -682,6 +682,14 @@
         (mode === "uhi" ? "frame_uhi_" : "frame_") + String(i).padStart(3, "0") + ".png",
       values: (c) => `/data/forecast/${c}/latest/values.bin`,
       asset: (c, f) => `/data/forecast/${c}/latest/${f}`,
+      // rolling 48 h hindcast (past grid + past map frames) + in-AOI stations
+      hindcast: (c) => `/data/forecast/${c}/latest/hindcast.bin`,
+      hindcastMeta: (c) => `/data/forecast/${c}/latest/hindcast.json`,
+      hframe: (c, i) => `/data/forecast/${c}/latest/hindcast_frames/hframe_` +
+        String(i).padStart(3, "0") + ".png",
+      stations: (c) => `/data/forecast/${c}/latest/stations.geojson`,
+      stationCsv: (c, slug, kind) =>
+        `/data/forecast/${c}/latest/stations/${slug}.${kind}.csv`,
     };
     // MapLibre `image` sources need an absolute URL. FC.* return site-root paths
     // ("/data/…" in source; the deploy step makes them relative for the Pages
@@ -718,11 +726,17 @@
       started: false, map: null, city: null, meta: null,
       frame: 0, playing: false, timer: null, values: null,
       frameMean: null, uhi: null, cities: [], mode: "absolute",
-      layers: { forecast: true, basemap: true, buildings: true, trees: false, water: true, wind: true },
+      layers: { forecast: true, basemap: true, buildings: true, trees: false, water: true, wind: true, stations: true },
       // precipitation chart — user can hide it; choice persists
       precipHidden: (() => { try { return localStorage.getItem("fcPrecipHidden") === "1"; } catch (e) { return false; } })(),
       // point selector
       picking: false, marker: null, adv: { lngLat: null, indoor: 24, goal: "cool", series: null },
+      // rolling hindcast (past): { w,h,nH,bounds,data:Float32Array, hours:[{utc,local,source_issue}] }
+      hind: null,
+      // unified timeline: past hindcast hours ++ forward frames; tframe indexes it
+      tl: [], hPast: 0, tframe: 0,
+      // stations: parsed stations.geojson + a lazy { slug: [{utc,temp}, …] } cache
+      stations: null, stationSeries: {}, pickedStation: null,
     };
     const g = (id) => document.getElementById(id);
     const OV = "fc-ov";
@@ -805,9 +819,6 @@
       renderBanner(m);
       renderCaveats(m.caveats);
 
-      g("fcSlider").max = String(m.n_frames - 1);
-      g("fcSlider").value = "0";
-
       // per-hour UHI (urban − rural, coarse BuildingFraction median split)
       S.uhi = m.uhi || null;
       g("fcUhiItem").hidden = !S.uhi;
@@ -818,6 +829,55 @@
       S.values = { w: vg.width, h: vg.height, nH: vg.n_hours,
                    bounds: vg.bounds_wgs84, data: new Float32Array(buf) };
       S.frameMean = computeFrameMeans(S.values);
+
+      // hindcast.bin — the rolling last-48 h grid (optional). Same native grid
+      // as values.bin. Absent for other cities / the first 2 days.
+      S.hind = null;
+      try {
+        const hm = await fetch(FC.hindcastMeta(cid) + S.v).then((r) => r.ok ? r.json() : null);
+        if (hm && hm.n_hours > 0) {
+          // cache-bust the .bin on the header's own stamp — it changes every run
+          // even when run_time_utc (S.v) does not move between identical issues
+          S.hindV = "?v=" + encodeURIComponent(hm.generated_utc || "0");
+          const hbuf = await fetch(FC.hindcast(cid) + S.hindV).then((r) => r.arrayBuffer());
+          const hd = new Float32Array(hbuf);
+          if (hd.length === hm.n_hours * hm.height * hm.width) {
+            S.hind = { w: hm.width, h: hm.height, nH: hm.n_hours,
+                       bounds: hm.bounds_wgs84, framesOK: false,
+                       hours: hm.hours, data: hd };
+          } else {
+            console.warn("hindcast.bin length mismatch — ignoring", hd.length,
+                         "vs", hm.n_hours * hm.height * hm.width);
+          }
+        }
+      } catch (e) { S.hind = null; }
+      // has_hindcast_frames lives in the manifest, not hindcast.json — read it there
+      const manifestCity = (S.cities || []).find((c) => c.id === cid) || {};
+      if (S.hind) S.hind.framesOK = !!manifestCity.has_hindcast_frames;
+
+      // unified timeline: [ …past hindcast hours…, …forward frames… ].
+      // The hindcast and values.bin both start at the issue hour, so keep only
+      // hindcast hours strictly BEFORE frames[0] — no double-counted overlap.
+      const fFirst = m.frames[0].utc;
+      const pastHours = S.hind
+        ? S.hind.hours.filter((h) => h.utc < fFirst).map((h) => ({
+            utc: h.utc, local: h.local, hour_local: h.hour_local,
+            source_issue: h.source_issue, past: true }))
+        : [];
+      S.hPast = pastHours.length;
+      S.tl = pastHours.concat(m.frames.map((f) => ({
+                utc: f.utc, local: f.local, hour_local: f.hour_local,
+                day: f.day, past: false })));
+      S.tframe = S.hPast;                     // start at "now" (frame 0)
+      g("fcSlider").max = String(S.tl.length - 1);
+      g("fcSlider").value = String(S.tframe);
+
+      // stations.geojson — in-AOI observation points (optional)
+      S.stations = null; S.stationSeries = {}; S.pickedStation = null;
+      try {
+        const sg = await fetch(FC.stations(cid) + S.v).then((r) => r.ok ? r.json() : null);
+        if (sg && sg.features && sg.features.length) S.stations = sg;
+      } catch (e) { S.stations = null; }
 
       // wind + precipitation context series (optional)
       S.ctxSeries = null;
@@ -841,12 +901,13 @@
         } catch (e) { aoiRings = null; }
       }
 
+      syncStationsChip();
       buildMap(m);
       WindField.setAoi(aoiRings);
       if (haveWind && S.layers.wind !== false) WindField.attach();
       else WindField.stop();
       preloadFrames(cid, m.n_frames);
-      setFrame(0);
+      setFrame(S.tframe);
     }
 
     // rain-rate categories (mm/h) — MetOffice-style bands
@@ -1001,6 +1062,19 @@
           map.addLayer({ id: "zoi-line", type: "line", source: "zoi",
             paint: { "line-color": "#e11d2e", "line-width": 3.5 } });
         }
+        // station markers — in-AOI observation points (compare grid vs measured)
+        if (S.stations) {
+          map.addSource("stations", { type: "geojson", data: S.stations });
+          map.addLayer({ id: "stations", type: "circle", source: "stations",
+            layout: { visibility: S.layers.stations ? "visible" : "none" },
+            paint: {
+              "circle-radius": 6, "circle-color": "#4cc9f0",
+              "circle-stroke-width": 2, "circle-stroke-color": "#ffffff",
+              "circle-opacity": 0.95,
+            } });
+          map.on("mouseenter", "stations", () => { map.getCanvas().style.cursor = "pointer"; });
+          map.on("mouseleave", "stations", () => { map.getCanvas().style.cursor = ""; });
+        }
         applyLayers();
       });
 
@@ -1015,7 +1089,14 @@
       });
       map.on("mouseout", () => g("fcReadout").classList.add("is-hidden"));
 
-      map.on("click", (ev) => { if (S.picking) pickPoint(ev.lngLat); });
+      map.on("click", (ev) => {
+        // a click on a station dot wins over the free-point picker
+        if (S.stations && map.getLayer("stations")) {
+          const hit = map.queryRenderedFeatures(ev.point, { layers: ["stations"] });
+          if (hit.length) { pickStation(hit[0].properties.slug); return; }
+        }
+        if (S.picking) pickPoint(ev.lngLat);
+      });
     }
 
     // layer visibility: forecast (temp raster), basemap (OSM), buildings/trees/water.
@@ -1036,6 +1117,7 @@
       set("ctx-buildings", S.layers.buildings);
       set("ctx-trees", S.layers.trees);
       set("ctx-water", S.layers.water);
+      set("stations", S.layers.stations);
       try {
         if (m.getLayer(OV)) m.setPaintProperty(OV, "raster-opacity", S.layers.basemap ? 0.86 : 1);
       } catch (e) {}
@@ -1065,6 +1147,11 @@
         c.classList.toggle("is-on", on);
         if (c.dataset.mode === "uhi") c.disabled = !hasUhi, c.style.opacity = hasUhi ? "" : ".4";
       });
+    }
+    // hide the Stations chip entirely when the city has no station data
+    function syncStationsChip() {
+      const chip = document.querySelector('#fcLayers .fl-chip[data-layer="stations"]');
+      if (chip) chip.hidden = !S.stations;
     }
     function setMode(mode) {
       if (mode === S.mode || (mode === "uhi" && !(S.mL && S.mL.uhi))) return;
@@ -1113,39 +1200,78 @@
         im.src = FC.frame(cid, i, S.mode);
         cache.set(i, im);
       }
+      // also warm the past map frames when present
+      if (S.hind && S.hind.framesOK) {
+        for (let i = 0; i < S.hPast; i++) {
+          const im = new Image();
+          im.src = FC.hframe(cid, i) + (S.hindV || "");
+          cache.set("h" + i, im);
+        }
+      }
     }
 
+    // `i` is a TIMELINE index: 0 … S.tl.length-1, with S.hPast = "now" (frame 0).
     function setFrame(i) {
-      if (!S.meta) return;
-      S.frame = Math.max(0, Math.min(S.meta.n_frames - 1, i | 0));
-      g("fcSlider").value = String(S.frame);
-      const ft = S.meta.frames[S.frame];
-      g("fcTimeMain").textContent = ft.local + "  ·  local";
-      g("fcTimeSub").textContent =
-        `day ${ft.day} of forecast · issued ${fmtIssue(S.meta.forecast_issue_time_utc)}`;
-      const mv = S.frameMean && S.frameMean[S.frame];
-      g("fcMeanVal").textContent = isFinite(mv) ? mv.toFixed(1) + " °C" : "—";
+      if (!S.meta || !S.tl.length) return;
+      S.tframe = Math.max(0, Math.min(S.tl.length - 1, i | 0));
+      const past = S.tframe < S.hPast;
+      // forward-frame index for all the existing forward-only machinery
+      S.frame = Math.max(0, Math.min(S.meta.n_frames - 1, S.tframe - S.hPast));
+      g("fcSlider").value = String(S.tframe);
+
+      const t = S.tl[S.tframe];
+      g("fcTimeMain").textContent = t.local + "  ·  local";
+      g("fcTimeSub").textContent = past
+        ? `${hoursFromNow(S.tframe)} · grid: forecast issued ${fmtIssue(t.source_issue)}`
+        : `day ${t.day} of forecast · issued ${fmtIssue(S.meta.forecast_issue_time_utc)}`;
+
+      // city-mean + UHI are forward-only series; blank them in the past
+      const mv = !past && S.frameMean && S.frameMean[S.frame];
+      g("fcMeanVal").textContent = (!past && isFinite(mv)) ? mv.toFixed(1) + " °C" : "—";
       if (S.uhi) {
-        const u = S.uhi.uhi_c[S.meta.frame_start_index + S.frame];
-        g("fcUhiVal").textContent = (u >= 0 ? "+" : "") + u.toFixed(2) + " °C";
-        g("fcUhiVal").style.color = u >= 0.15 ? "var(--hot)"
-          : u <= -0.05 ? "var(--accent)" : "var(--text-1)";
+        if (past) { g("fcUhiVal").textContent = "—"; g("fcUhiVal").style.color = "var(--text-2)"; }
+        else {
+          const u = S.uhi.uhi_c[S.meta.frame_start_index + S.frame];
+          g("fcUhiVal").textContent = (u >= 0 ? "+" : "") + u.toFixed(2) + " °C";
+          g("fcUhiVal").style.color = u >= 0.15 ? "var(--hot)"
+            : u <= -0.05 ? "var(--accent)" : "var(--text-1)";
+        }
       }
+
       const [w, s, e, n] = S.meta.overlay_bounds_wgs84;
       const src = S.map && S.map.getSource(OV);
-      if (src) src.updateImage({
-        url: abs(FC.frame(S.city, S.frame, S.mode)) + S.v,
-        coordinates: [[w, n], [e, n], [e, s], [w, s]],
-      });
-      if (S.mode === "uhi") updateBar();    // per-hour scale changes each frame
-      updateContext(S.frame);
-      if (S.adv.series) renderAdvisor();    // move the "now" line / re-verdict
+      // past frames exist only for the absolute layer; fall back to the "now"
+      // forward frame when they don't (keeps the slider usable either way)
+      const url = (past && S.hind && S.hind.framesOK && S.mode !== "uhi")
+        ? abs(FC.hframe(S.city, S.tframe)) + (S.hindV || S.v)
+        : abs(FC.frame(S.city, S.frame, S.mode)) + S.v;
+      if (src) src.updateImage({ url, coordinates: [[w, n], [e, n], [e, s], [w, s]] });
+
+      if (S.mode === "uhi") updateBar();
+      updateContext(past ? -1 : S.frame);     // -1 => mute wind/precip in the past
+      if (S.adv.series || S.pickedStation) renderAdvisor();
+    }
+
+    function hoursFromNow(ti) {
+      const d = ti - S.hPast;
+      if (d === 0) return "now";
+      return d < 0 ? `${-d} h ago` : `+${d} h`;
     }
 
     const COMPASS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
                      "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
     function updateContext(i) {
       const c = S.ctxSeries;
+      if (i < 0) {   // past region — no wind/precip archive; mute the widgets
+        g("fcWindVal").textContent = "—";
+        g("fcWindDir").textContent = "—";
+        WindField.set(0, 0);
+        const nl = g("fpNow");
+        if (nl) { nl.setAttribute("x1", "-10"); nl.setAttribute("x2", "-10"); }
+        g("fcPrecipNow").textContent = "—";
+        g("fcPrecipNow").style.color = "var(--text-2)";
+        return;
+      }
       if (c && c.wind_speed_kmh) {
         const spd = c.wind_speed_kmh[i], dir = c.wind_dir_deg[i];
         g("fcWindVal").textContent = spd == null ? "—" : Math.round(spd);
@@ -1320,7 +1446,8 @@
     function play() {
       S.playing = true; g("fcPlay").textContent = "⏸";
       S.timer = setInterval(() => {
-        setFrame(S.frame + 1 >= S.meta.n_frames ? 0 : S.frame + 1);
+        // loop over the whole timeline (past hindcast + forward frames)
+        setFrame(S.tframe + 1 >= S.tl.length ? 0 : S.tframe + 1);
       }, 550);
     }
     function stop() {
@@ -1331,14 +1458,22 @@
     // frameIdx 0..n_frames-1 — values.bin is the native-resolution grid for
     // exactly the shown window (index: "frame" in meta), so no interpolation.
     function sampleValues(lng, lat, frameIdx) {
-      const v = S.values;
+      return sampleGrid(S.values, lng, lat, frameIdx);
+    }
+    function sampleGrid(v, lng, lat, k) {
       if (!v) return NaN;
       const [l, b, r, t] = v.bounds;
       if (lng < l || lng > r || lat < b || lat > t) return NaN;
       const col = Math.min(v.w - 1, Math.floor(((lng - l) / (r - l)) * v.w));
       const row = Math.min(v.h - 1, Math.floor(((t - lat) / (t - b)) * v.h));
-      const k = Math.max(0, Math.min(v.nH - 1, frameIdx));
+      k = Math.max(0, Math.min(v.nH - 1, k));
       return v.data[k * v.w * v.h + row * v.w + col];
+    }
+    // TIMELINE sampler: ti < S.hPast -> hindcast grid slab ti;
+    // ti >= S.hPast -> forecast grid frame (ti - S.hPast).
+    function sampleAt(lng, lat, ti) {
+      if (ti < S.hPast) return sampleGrid(S.hind, lng, lat, ti);
+      return sampleGrid(S.values, lng, lat, ti - S.hPast);
     }
 
     /* ---------- Point selector ------------------------------
@@ -1361,6 +1496,8 @@
       const c = g("fcMap"); if (c) c.classList.remove("is-picking");
       if (S.marker) { try { S.marker.remove(); } catch (e) {} S.marker = null; }
       S.adv.lngLat = null; S.adv.series = null;
+      S.pickedStation = null;
+      const cmp = g("faCompare"); if (cmp) cmp.hidden = true;
       g("fcAdvisor").hidden = true;
       g("fcStage").classList.remove("picking-active");
     }
@@ -1379,6 +1516,8 @@
       S.marker = new maplibregl.Marker({ element: elm, anchor: "bottom" })
         .setLngLat(lngLat).addTo(S.map);
 
+      S.pickedStation = null;
+      const cmp = g("faCompare"); if (cmp) cmp.hidden = true;
       S.adv.lngLat = lngLat;
       S.adv.series = series;
       g("fcAdvisor").hidden = false;
@@ -1386,11 +1525,52 @@
       renderAdvisor();
     }
 
-    // outdoor air-temp for every shown hour at one point
+    // ---- station compare: measured vs forecast grid over the past window -----
+    function stationLngLat(slug) {
+      const f = (S.stations.features || []).find((x) => x.properties.slug === slug);
+      return f ? f.geometry.coordinates : null;
+    }
+    async function loadStationSeries(slug) {
+      if (S.stationSeries[slug]) return S.stationSeries[slug];
+      try {
+        const txt = await fetch(FC.stationCsv(S.city, slug, "hourly") + S.v).then((r) => r.text());
+        const lines = txt.trim().split(/\r?\n/);
+        const head = lines.shift().split(",");
+        const ti = head.indexOf("time"), tt = head.indexOf("temp");
+        const map = {};
+        for (const ln of lines) {
+          const c = ln.split(",");
+          const v = parseFloat(c[tt]);
+          if (isFinite(v)) map[c[ti]] = v;      // key: 'YYYY-MM-DDTHH:00:00Z'
+        }
+        S.stationSeries[slug] = map;
+        return map;
+      } catch (e) { S.stationSeries[slug] = {}; return {}; }
+    }
+    async function pickStation(slug) {
+      const ll = stationLngLat(slug);
+      if (!ll) return;
+      if (S.marker) { try { S.marker.remove(); } catch (e) {} }
+      const elm = document.createElement("div");
+      elm.className = "fc-pin fc-pin-station";
+      S.marker = new maplibregl.Marker({ element: elm, anchor: "bottom" })
+        .setLngLat(ll).addTo(S.map);
+
+      S.pickedStation = slug;
+      S.adv.lngLat = { lng: ll[0], lat: ll[1] };
+      S.adv.series = sampleSeries(ll[0], ll[1]);   // forecast series (for the window advisor)
+      await loadStationSeries(slug);
+      g("fcAdvisor").hidden = false;
+      g("fcStage").classList.add("picking-active");
+      renderAdvisor();
+    }
+
+    // forecast air-temp for every TIMELINE hour at one point (past hindcast +
+    // forward frames), so the chart runs the full −48 h … +72 h span
     function sampleSeries(lng, lat) {
-      const n = S.values ? S.values.nH : 0;
+      const n = S.tl.length || (S.values ? S.values.nH : 0);
       const out = new Array(n);
-      for (let k = 0; k < n; k++) out[k] = sampleValues(lng, lat, k);
+      for (let k = 0; k < n; k++) out[k] = sampleAt(lng, lat, k);
       return out;
     }
 
@@ -1406,15 +1586,48 @@
     function renderAdvisor() {
       if (!S.adv.series) return;
       const ll = S.adv.lngLat;
-      g("faTitle").textContent = `${ll.lat.toFixed(4)}, ${ll.lng.toFixed(4)}`;
+      if (S.pickedStation) {
+        const f = (S.stations.features || []).find((x) => x.properties.slug === S.pickedStation);
+        g("faTitle").textContent = (f && f.properties.name) || S.pickedStation;
+      } else {
+        g("faTitle").textContent = `${ll.lat.toFixed(4)}, ${ll.lng.toFixed(4)}`;
+      }
       const sched = computeSchedule();
       renderVerdict(sched);
       renderChart(sched);
+      renderCompare();
+    }
+
+    // measured vs grid — bias / RMSE over every ELAPSED timeline hour (the past
+    // hindcast plus any already-elapsed forecast hours), joined to the station's
+    // hourly readings. sampleAt picks the right grid per hour.
+    function renderCompare() {
+      const el = g("faCompare");
+      if (!el) return;
+      if (!S.pickedStation) { el.hidden = true; return; }
+      const meas = S.stationSeries[S.pickedStation] || {};
+      const ll = S.adv.lngLat;
+      const nowMs = Date.now();
+      let nOK = 0, sum = 0, sq = 0;
+      for (let k = 0; k < S.tl.length; k++) {
+        if (Date.parse(S.tl[k].utc) >= nowMs) break;    // only elapsed hours
+        const m = meas[S.tl[k].utc];
+        const gval = sampleAt(ll.lng, ll.lat, k);
+        if (isFinite(m) && isFinite(gval)) { const d = gval - m; nOK++; sum += d; sq += d * d; }
+      }
+      if (!nOK) { el.hidden = true; return; }
+      const bias = sum / nOK, rmse = Math.sqrt(sq / nOK);
+      el.hidden = false;
+      el.innerHTML =
+        `<span class="fac-k">grid − measured</span> ` +
+        `<span class="fac-v">bias ${bias >= 0 ? "+" : ""}${bias.toFixed(2)} °C</span> ` +
+        `<span class="fac-v">RMSE ${rmse.toFixed(2)} °C</span> ` +
+        `<span class="fac-n">over ${nOK} h</span>`;
     }
 
     function renderVerdict(sched) {
       const el = g("faVerdict");
-      const now = S.frame;
+      const now = S.tframe;
       const openNow = sched[now];
       const cool = S.adv.goal === "cool";
       // find the next hour whose state differs
@@ -1426,11 +1639,11 @@
       let msg = `<b>${openNow ? "OPEN now" : "CLOSED now"}</b> — ${act}`;
       msg += cool ? " to let cooler outside air in." : " to catch the warmer outside air.";
       if (change >= 0) {
-        const ft = S.meta.frames[change];
+        const ft = S.tl[change];
         const verb = openNow ? "close them" : "open them";
         msg += `<br>Then <b>${verb}</b> at ${ft.local.slice(5)} (in ${change - now} h).`;
       } else {
-        msg += `<br>No change for the rest of the ${sched.length} h horizon.`;
+        msg += `<br>No change for the rest of the horizon.`;
       }
       // count remaining open hours
       const openLeft = sched.slice(now).filter(Boolean).length;
@@ -1439,15 +1652,29 @@
       el.classList.toggle("is-shut", !openNow);
     }
 
-    // 72 h outdoor line + open/closed shading + indoor reference + "now" marker.
-    // viewBox width == the SVG's real pixel width so 1 unit = 1 px: no
-    // preserveAspectRatio stretch, so text / ticks / the dot stay undistorted.
+    // Timeline chart: past hindcast + forward forecast at the picked point, with
+    // open/closed shading, an indoor reference, the "now" marker, and — when a
+    // station is picked — its measured hourly line over the past window.
+    // viewBox width == the SVG's real pixel width so 1 unit = 1 px.
     function renderChart(sched) {
       const svg = g("faChart");
       const W = Math.max(320, Math.round(svg.getBoundingClientRect().width) || 720);
       const H = 150, padL = 34, padR = 8, padT = 10, padB = 18;
       const s = S.adv.series, n = s.length;
-      const fin = s.filter(isFinite);
+
+      // measured series (station pick only) over every ELAPSED timeline hour
+      const meas = S.pickedStation ? (S.stationSeries[S.pickedStation] || {}) : null;
+      const measVals = [];
+      if (meas) {
+        const nowMs = Date.now();
+        for (let k = 0; k < n; k++) {
+          if (Date.parse(S.tl[k].utc) >= nowMs) break;
+          const v = meas[S.tl[k].utc];
+          measVals.push(isFinite(v) ? v : NaN);
+        }
+      }
+
+      const fin = s.filter(isFinite).concat(measVals.filter(isFinite));
       let lo = Math.min(S.adv.indoor, ...fin), hi = Math.max(S.adv.indoor, ...fin);
       if (hi - lo < 4) { const m = (hi + lo) / 2; lo = m - 2; hi = m + 2; }
       lo = Math.floor(lo - 0.5); hi = Math.ceil(hi + 0.5);
@@ -1455,6 +1682,11 @@
       const y = (v) => padT + (1 - (v - lo) / (hi - lo)) * (H - padT - padB);
 
       const parts = [];
+      // past region tint — everything left of "now"
+      if (S.hPast > 0) {
+        const xNow = x(S.hPast).toFixed(1);
+        parts.push(`<rect x="${padL}" y="${padT}" width="${(xNow - padL).toFixed(1)}" height="${H - padT - padB}" fill="rgba(120,130,150,0.10)"/>`);
+      }
       // open/closed background bands (one rect per contiguous run)
       let runStart = 0;
       for (let k = 1; k <= n; k++) {
@@ -1473,9 +1705,9 @@
         parts.push(`<line x1="${padL}" y1="${yy}" x2="${W - padR}" y2="${yy}" stroke="rgba(255,255,255,0.06)"/>`);
         parts.push(`<text x="${padL - 5}" y="${(+yy + 3).toFixed(1)}" text-anchor="end" font-size="9" fill="#61707f" font-family="ui-monospace,Consolas,monospace">${tv}°</text>`);
       }
-      // day boundaries (x ticks) from frame local labels
+      // day boundaries (x ticks) from the unified timeline's local labels
       for (let k = 0; k < n; k++) {
-        const f = S.meta.frames[k];
+        const f = S.tl[k];
         if (f && (f.hour_local === 0 || / 00:00$/.test(f.local))) {
           const lbl = f.local.slice(5, 10);   // MM-DD
           parts.push(`<line x1="${x(k).toFixed(1)}" y1="${padT}" x2="${x(k).toFixed(1)}" y2="${H - padB}" stroke="rgba(255,255,255,0.08)" stroke-dasharray="2 3"/>`);
@@ -1485,19 +1717,29 @@
       // indoor reference line
       const yi = y(S.adv.indoor).toFixed(1);
       parts.push(`<line x1="${padL}" y1="${yi}" x2="${W - padR}" y2="${yi}" stroke="#9aa7b6" stroke-width="1" stroke-dasharray="4 3"/>`);
-      // outdoor temp polyline (break the path across NaN gaps)
+      // forecast/grid polyline (break across NaN gaps)
       let d = "", pen = false;
       for (let k = 0; k < n; k++) {
         if (!isFinite(s[k])) { pen = false; continue; }
         d += `${pen ? " L" : " M"}${x(k).toFixed(1)} ${y(s[k]).toFixed(1)}`;
         pen = true;
       }
-      parts.push(`<path d="${d.trim()}" fill="none" stroke="#f7913a" stroke-width="1.6"/>`);
-      // "now" marker
-      const xn = x(S.frame).toFixed(1);
-      parts.push(`<line x1="${xn}" y1="${padT}" x2="${xn}" y2="${H - padB}" stroke="#4cc9f0" stroke-width="1.5"/>`);
-      if (isFinite(s[S.frame]))
-        parts.push(`<circle cx="${xn}" cy="${y(s[S.frame]).toFixed(1)}" r="3" fill="#4cc9f0"/>`);
+      parts.push(`<path d="${d.trim()}" fill="none" stroke="#4cc9f0" stroke-width="1.6"/>`);
+      // measured line over the past window
+      if (meas) {
+        let dm = "", pm = false;
+        for (let k = 0; k < measVals.length; k++) {
+          if (!isFinite(measVals[k])) { pm = false; continue; }
+          dm += `${pm ? " L" : " M"}${x(k).toFixed(1)} ${y(measVals[k]).toFixed(1)}`;
+          pm = true;
+        }
+        parts.push(`<path d="${dm.trim()}" fill="none" stroke="#f7913a" stroke-width="1.8"/>`);
+      }
+      // "now" marker at the timeline cursor
+      const xn = x(S.tframe).toFixed(1);
+      parts.push(`<line x1="${xn}" y1="${padT}" x2="${xn}" y2="${H - padB}" stroke="#e7dc32" stroke-width="1.5"/>`);
+      if (isFinite(s[S.tframe]))
+        parts.push(`<circle cx="${xn}" cy="${y(s[S.tframe]).toFixed(1)}" r="3" fill="#e7dc32"/>`);
 
       svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
       svg.innerHTML = parts.join("");

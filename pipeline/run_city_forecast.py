@@ -31,7 +31,9 @@ from pathlib import Path
 import yaml
 
 from build_forecast import build as build_web
+from build_hindcast import update_hindcast
 from build_manifest import write_manifest
+from fetch_forecast_stations import fetch_stations
 
 ROOT = Path(__file__).resolve().parents[1]
 REGISTRY = ROOT / "cities.forecast.yaml"
@@ -163,6 +165,21 @@ def main():
                 break
 
     build_web(nc, a.city, city_cfg, DATA)
+
+    # Additive, both best-effort: a failure here must never fail the forecast.
+    #   - update_hindcast: roll the last 48 h of grid predictions into
+    #     latest/hindcast.{bin,json} + hindcast_frames/ (past map playback +
+    #     grid-vs-measured baseline).
+    #   - fetch_stations: pull in-AOI station observations for the same 48 h.
+    try:
+        update_hindcast(a.city, city_cfg, DATA)
+    except Exception as e:                       # noqa: BLE001
+        print(f"  hindcast update skipped ({e})")
+    try:
+        fetch_stations(a.city, city_cfg, DATA)
+    except Exception as e:                       # noqa: BLE001
+        print(f"  station fetch skipped ({e})")
+
     write_manifest(DATA)
     print("done.")
 

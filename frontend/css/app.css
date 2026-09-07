@@ -434,6 +434,10 @@ input[type="range"]::-webkit-slider-thumb {
 .fl-sw.fl-map {
   background: repeating-linear-gradient(45deg, #6b7684 0 3px, #454f5c 3px 6px);
 }
+.fl-sw.fl-dot {
+  background: #4cc9f0; border-radius: 50%; width: 11px; height: 11px;
+  border-color: #fff;
+}
 
 .fc-readout {
   position: absolute; top: 210px; right: 16px; z-index: 4;
@@ -600,12 +604,26 @@ input[type="range"]::-webkit-slider-thumb {
   background: var(--bg-2); border: 1px solid var(--stroke); border-radius: var(--radius-sm);
 }
 .fa-chart text { font-family: var(--mono); }
-.fa-legend { display: flex; gap: 16px; font-size: 10px; color: var(--text-2); }
+.fa-legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 10px; color: var(--text-2); }
 .fa-legend span { display: flex; align-items: center; gap: 5px; }
 .fa-sw { width: 12px; height: 10px; border-radius: 2px; display: inline-block; }
 .fa-sw.fa-open { background: rgba(76, 201, 240, 0.35); }
 .fa-sw.fa-shut { background: rgba(247, 145, 58, 0.28); }
 .fa-sw.fa-indoor { background: transparent; border-top: 2px dashed var(--text-1); border-radius: 0; height: 2px; }
+.fa-sw.fa-grid { background: #4cc9f0; }
+.fa-sw.fa-meas { background: #f7913a; }
+
+/* grid-vs-measured readout (station pick only) */
+.fa-compare {
+  font-size: 11.5px; color: var(--text-1);
+  display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: baseline;
+  background: var(--bg-2); border: 1px solid var(--stroke);
+  border-left: 2px solid #f7913a; border-radius: var(--radius-sm);
+  padding: 7px 11px;
+}
+.fa-compare .fac-k { color: var(--text-2); }
+.fa-compare .fac-v { font-family: var(--mono); color: var(--text-0); }
+.fa-compare .fac-n { color: var(--text-2); }
 
 .fa-note { font-size: 10px; color: var(--text-2); line-height: 1.5; }
 
@@ -613,6 +631,10 @@ input[type="range"]::-webkit-slider-thumb {
   width: 16px; height: 16px; border-radius: 50% 50% 50% 0;
   background: var(--accent); border: 2px solid #fff;
   transform: rotate(-45deg); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+.fc-pin.fc-pin-station {
+  border-radius: 50%; background: #4cc9f0; transform: none;
+  width: 15px; height: 15px;
 }
 
 

@@ -1,0 +1,8 @@
+{
+  "type": "FeatureCollection",
+  "features": [],
+  "properties": {
+    "city": "patras",
+    "empty_reason": "no station provider wired yet - intended source: NOA meteo.gr Automatic Weather Stations (penteli.meteo.gr)"
+  }
+}

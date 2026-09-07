@@ -432,6 +432,7 @@
             <button class="fl-chip" data-layer="trees"><span class="fl-sw" style="background:#14461f"></span>Trees</button>
             <button class="fl-chip is-on" data-layer="water"><span class="fl-sw" style="background:#0d2a5c"></span>Water</button>
             <button class="fl-chip is-on" data-layer="wind"><span class="fl-sw" style="background:#4cc9f0"></span>Wind flow</button>
+            <button class="fl-chip is-on" data-layer="stations" hidden><span class="fl-sw fl-dot"></span>Stations</button>
           </div>
           <div class="fc-mode glass" id="fcMode">
             <button class="fl-chip is-on" data-mode="absolute"><span class="fl-sw" style="background:linear-gradient(90deg,#30123b,#3e88e2,#30ed97,#e7dc32,#fdad2c,#b12406,#4a0d3f)"></span>Absolute °C</button>
@@ -507,17 +508,21 @@
             </div>
           </div>
           <p class="fa-verdict" id="faVerdict">—</p>
+          <p class="fa-compare" id="faCompare" hidden>—</p>
           <div class="fa-chartwrap">
             <svg class="fa-chart" id="faChart"></svg>
             <div class="fa-legend">
-              <span><i class="fa-sw fa-open"></i> windows open</span>
-              <span><i class="fa-sw fa-shut"></i> windows closed</span>
-              <span><i class="fa-sw fa-indoor"></i> indoor temp</span>
+              <span><i class="fa-sw fa-grid"></i> forecast grid</span>
+              <span><i class="fa-sw fa-meas"></i> measured</span>
+              <span><i class="fa-sw fa-open"></i> open</span>
+              <span><i class="fa-sw fa-shut"></i> closed</span>
+              <span><i class="fa-sw fa-indoor"></i> indoor</span>
             </div>
           </div>
           <p class="fa-note">Ventilation heuristic only — no thermal mass, solar gain
-             or humidity. Constant indoor temperature is assumed. Same forecast
-             pixel as the hover readout (~50&nbsp;m).</p>
+             or humidity. The past 48&nbsp;h grid is a rolling record of earlier
+             forecasts (see “issued …”); station readings are citizen/urban
+             sensors — the comparison is indicative, not a validation.</p>
         </section>
       </section>
     </main>

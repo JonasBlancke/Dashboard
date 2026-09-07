@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-09-07T05:07:37Z",
+  "generated_utc": "2026-09-07T08:15:47Z",
   "cities": [
     {
       "id": "dublin",
@@ -10,7 +10,10 @@
       "n_hours": 349,
       "n_frames": 72,
       "timezone": "Europe/Dublin",
-      "has_local_observations": true
+      "has_local_observations": true,
+      "hindcast_hours": 0,
+      "has_hindcast_frames": false,
+      "n_stations": 0
     },
     {
       "id": "ghent",
@@ -21,7 +24,10 @@
       "n_hours": 349,
       "n_frames": 72,
       "timezone": "Europe/Brussels",
-      "has_local_observations": true
+      "has_local_observations": true,
+      "hindcast_hours": 24,
+      "has_hindcast_frames": true,
+      "n_stations": 6
     },
     {
       "id": "patras",
@@ -32,7 +38,10 @@
       "n_hours": 349,
       "n_frames": 72,
       "timezone": "Europe/Athens",
-      "has_local_observations": true
+      "has_local_observations": true,
+      "hindcast_hours": 0,
+      "has_hindcast_frames": false,
+      "n_stations": 0
     },
     {
       "id": "wellington",
@@ -43,7 +52,10 @@
       "n_hours": 349,
       "n_frames": 72,
       "timezone": "Pacific/Auckland",
-      "has_local_observations": true
+      "has_local_observations": true,
+      "hindcast_hours": 0,
+      "has_hindcast_frames": false,
+      "n_stations": 0
     }
   ]
 }
