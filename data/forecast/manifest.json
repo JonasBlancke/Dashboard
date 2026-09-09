@@ -1,17 +1,17 @@
 {
-  "generated_utc": "2026-09-09T08:09:14Z",
+  "generated_utc": "2026-09-09T08:13:24Z",
   "cities": [
     {
       "id": "dublin",
       "display_name": "Dublin",
       "path": "dublin/latest",
-      "issue_time_utc": "2026-09-09T04:59:16Z",
-      "run_time_utc": "2026-09-09T05:01:12Z",
-      "n_hours": 349,
+      "issue_time_utc": "2026-09-09T08:11:02Z",
+      "run_time_utc": "2026-09-09T08:13:19Z",
+      "n_hours": 361,
       "n_frames": 72,
       "timezone": "Europe/Dublin",
       "has_local_observations": true,
-      "hindcast_hours": 7,
+      "hindcast_hours": 4,
       "has_hindcast_frames": true,
       "n_stations": 0
     },
