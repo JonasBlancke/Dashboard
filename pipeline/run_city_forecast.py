@@ -134,28 +134,38 @@ def main():
     nc = newest_nc(ml, city_name, sim)
     print(f"  NetCDF: {nc}")
 
-    # Rasters from the ML-UrbanHeat spatial dir (all pixel-aligned with ta_abs):
+    # Rasters for the context overlays + the UHI split. Each candidate is tried
+    # in order against two dirs: the model's own <sim>/spatial/ (resampled onto
+    # the ~50 m grid) and the city's raw_data/spatial/ (native 2 m sources).
     #   bf2000m      — coarse BuildingFraction for the urban/rural UHI split
     #                  (V27 uses the 2000 m aggregate, V29 the 1000 m one)
-    #   buildings/trees/water_tif — 2 m fraction rasters for context overlays
-    spatial = ml / "cities" / city_name / "processed_data" / sim / "spatial"
+    #   buildings_tif — building footprints: the native 2 m BuildingHeight.tif
+    #                  (metres, 0/NaN = no building) gives a crisp outline;
+    #                  falls back to the coarse BuildingFraction.tif
+    #   trees/water_tif — 2 m fraction rasters for context overlays
+    city_root = ml / "cities" / city_name
+    spatial_dirs = [
+        city_root / "processed_data" / sim / "spatial",
+        city_root / "raw_data" / "spatial",
+    ]
     for key, fnames in [
         ("bf2000m", ["BuildingFraction_1000m_resampled.tif",
                      "BuildingFraction_2000m_resampled.tif"]),
-        ("buildings_tif", ["BuildingFraction.tif"]),
+        ("buildings_tif", ["BuildingHeight.tif", "BuildingFraction.tif"]),
         ("trees_tif", ["TreeFraction.tif"]),
         ("water_tif", ["WaterFraction_fraction_mask.tif"]),
     ]:
         if city_cfg.get(key):
             continue
         for fname in fnames:
-            if (spatial / fname).is_file():
-                city_cfg[key] = str(spatial / fname)
+            hit = next((d / fname for d in spatial_dirs
+                        if (d / fname).is_file()), None)
+            if hit is not None:
+                city_cfg[key] = str(hit)
                 break
 
     # ZOI — an optional smaller "zone of interest" inside the AOI. Same lookup
     # paths as the AOI clip (run_predict_maps.py::_resolve_aoi_path).
-    city_root = ml / "cities" / city_name
     if not city_cfg.get("zoi_geojson"):
         for cand in (city_root / "ZOI.geojson",
                      city_root / "raw_data" / "ZOI.geojson",

@@ -3,8 +3,9 @@
 # daily-forecast.yml can pull them without any of it living in git.
 #
 # Iterates every `enabled` city in cities.forecast.yaml. Per city it uploads
-#   spatial-<id>-V29_forecast.tar.gz   resampled TIFs + default_grid + ~2000 px
-#                                      context rasters (buildings/trees/water)
+#   spatial-<id>-V29_forecast.tar.gz   resampled TIFs + default_grid + context
+#                                      rasters (buildings ~4000 px from the 2 m
+#                                      BuildingHeight.tif; trees/water ~2000 px)
 #   aoi-<id>.geojson                   simplified AOI (clips the prediction grid)
 #   zoi-<id>.geojson                   simplified ZOI, if present (red outline)
 # plus, once, the shared model + config:
@@ -90,24 +91,35 @@ for row in "${ROWS[@]}"; do
 
   spatial_src="$ML/cities/$NAME/processed_data/$SPATIAL_SIM/spatial"
   [ -d "$spatial_src" ] || { echo "  ! missing $spatial_src — skipped" >&2; continue; }
+  raw_src="$ML/cities/$NAME/raw_data/spatial"
 
   stage="$work/$ID"; mkdir -p "$stage"
   echo "  collecting model-input rasters (*_resampled.tif + default_grid.tif)"
   ( cd "$spatial_src" && cp *_resampled.tif default_grid.tif "$stage/" 2>/dev/null )
 
-  echo "  down-sampling the 2 m context rasters (buildings / trees / water)"
-  python - "$spatial_src" "$stage" <<'PY'
+  echo "  down-sampling the context rasters (buildings / trees / water)"
+  # buildings: native 2 m BuildingHeight.tif from raw_data/spatial/ if present
+  # (metres, 0/NaN = no building), nearest-resampled to ~4000 px so footprint
+  # edges stay crisp; the pipeline masks it at >0.5 m. Falls back to the coarse
+  # BuildingFraction.tif (fraction, average-resampled). trees/water unchanged.
+  python - "$spatial_src" "$raw_src" "$stage" <<'PY'
 import sys, pathlib, rasterio
 from rasterio.enums import Resampling
-src_dir, out_dir = map(pathlib.Path, sys.argv[1:3])
-for name in ["BuildingFraction.tif", "TreeFraction.tif", "WaterFraction_fraction_mask.tif"]:
-    p = src_dir / name
+mdl_dir, raw_dir, out_dir = map(pathlib.Path, sys.argv[1:4])
+bh = raw_dir / "BuildingHeight.tif"
+jobs = [
+    (bh, "BuildingHeight.tif", 4000, Resampling.nearest) if bh.is_file()
+        else (mdl_dir / "BuildingFraction.tif", "BuildingFraction.tif", 2000, Resampling.average),
+    (mdl_dir / "TreeFraction.tif", "TreeFraction.tif", 2000, Resampling.average),
+    (mdl_dir / "WaterFraction_fraction_mask.tif", "WaterFraction_fraction_mask.tif", 2000, Resampling.average),
+]
+for p, name, cap, rs in jobs:
     if not p.is_file():
         print(f"    ! {name} missing — skipped"); continue
     with rasterio.open(p) as ds:
-        scale = min(1.0, 2000 / max(ds.width, ds.height))
+        scale = min(1.0, cap / max(ds.width, ds.height))
         w, h = max(1, round(ds.width * scale)), max(1, round(ds.height * scale))
-        data = ds.read(1, out_shape=(h, w), resampling=Resampling.average)
+        data = ds.read(1, out_shape=(h, w), resampling=rs)
         prof = ds.profile
     prof.update(width=w, height=h,
                 transform=ds.transform * ds.transform.scale(ds.width / w, ds.height / h),

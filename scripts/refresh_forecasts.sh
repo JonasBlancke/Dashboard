@@ -41,6 +41,7 @@ extra=(); [ -n "${SKIP_MODEL:-}" ] && extra+=(--skip-model)
 
 changed=()
 for cid in "${CITIES[@]}"; do
+  cid="${cid%$'\r'}"                       # strip CR if mapfile kept one (Git Bash)
   echo "════════ $cid ════════"
   d="data/forecast/$cid"
 

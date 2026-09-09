@@ -275,25 +275,32 @@ def _sha256(p: Path) -> str:
     return h.hexdigest()
 
 
-# context overlays: (registry key, output name, RGB, threshold).
+# context overlays: (registry key, output name, RGB, threshold, is_height).
 # Colours chosen to NOT overlap the forecast ramp: buildings near-black,
 # trees a dark forest green (ramp's green is light), water a deep navy
 # (ramp's blue is a mid sky blue).
+# `is_height` layers carry metres (0/NaN = absent), not a 0..1 fraction, so
+# the source raster is resampled with `nearest` (a footprint edge, not an
+# area mean) and the threshold is a height in metres.
 CONTEXT_LAYERS = [
-    ("buildings_tif", "ctx_buildings.png", (14, 14, 16), 0.5),
-    ("trees_tif",     "ctx_trees.png",     (20, 70, 32), 0.5),
-    ("water_tif",     "ctx_water.png",     (13, 42, 92), 0.5),
+    ("buildings_tif", "ctx_buildings.png", (14, 14, 16), 0.5, True),
+    ("trees_tif",     "ctx_trees.png",     (20, 70, 32), 0.5, False),
+    ("water_tif",     "ctx_water.png",     (13, 42, 92), 0.5, False),
 ]
 
 
-CONTEXT_MAX = 1200   # context overlays render sharper than the temp frames
+CONTEXT_MAX = 2000   # context overlays render sharper than the temp frames;
+                     # high enough to keep 2 m building-footprint detail crisp
 
 
 def _render_context_overlay(tif_path, rgb, thr, geo_bounds, src_crs, out_png,
-                            aoi_mask=None):
-    """One static PNG: pixels with fraction >= thr get `rgb`, rest transparent.
+                            aoi_mask=None, is_height=False):
+    """One static PNG: pixels above `thr` get `rgb`, rest transparent.
     Rendered on its own lng/lat grid (long edge <= CONTEXT_MAX) covering
     the same extent as the forecast frames, so the mask stays crisp.
+    `is_height` — the source is a metres raster (2 m building heights), so
+    resample with `nearest` to keep footprint edges sharp; otherwise it is a
+    0..1 fraction and `average` is right.
     `aoi_mask` (any 2-D bool grid over the same bounds) clips the output to the
     modelled area — resized to this grid with nearest sampling."""
     if not tif_path or not Path(tif_path).is_file():
@@ -316,7 +323,8 @@ def _render_context_overlay(tif_path, rgb, thr, geo_bounds, src_crs, out_png,
     dst = np.full((dh, dw), np.nan, "float32")
     reproject(a, dst, src_transform=s_transform, src_crs=s_crs,
               dst_transform=dst_t, dst_crs=DST_CRS,
-              resampling=Resampling.average, src_nodata=np.nan, dst_nodata=np.nan)
+              resampling=Resampling.nearest if is_height else Resampling.average,
+              src_nodata=np.nan, dst_nodata=np.nan)
     mask = np.isfinite(dst) & (dst >= thr)
     if aoi_mask is not None and aoi_mask.any():
         clip = np.array(Image.fromarray(aoi_mask.astype("uint8") * 255)
@@ -556,9 +564,10 @@ def build(nc_path: Path, city_id: str, cfg: dict, out_root: Path):
     # ---- context overlays (buildings / trees / water) — static PNGs ----
     geo_bounds = (m_l, m_b, m_r, m_t)   # DST_CRS metres — same extent as frames
     ctx = {}
-    for key, name, rgb, thr in CONTEXT_LAYERS:
+    for key, name, rgb, thr, is_height in CONTEXT_LAYERS:
         got = _render_context_overlay(cfg.get(key), rgb, thr, geo_bounds,
-                                      src_crs, out_dir / name, aoi_mask)
+                                      src_crs, out_dir / name, aoi_mask,
+                                      is_height=is_height)
         if got:
             ctx[key.replace("_tif", "")] = {
                 "file": name, "color": "#%02x%02x%02x" % rgb, "threshold": thr,
