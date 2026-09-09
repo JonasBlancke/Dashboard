@@ -3,15 +3,15 @@
   "display_name": "Dublin",
   "simulation_name": "V29_forecast_lrc_pixel",
   "forecast_model": "ecmwf_ifs",
-  "forecast_issue_time_utc": "2026-09-09T08:11:02Z",
-  "fetch_time_utc": "2026-09-09T08:11:02Z",
-  "run_time_utc": "2026-09-09T08:13:19Z",
-  "source_nc": "ta_abs_2026-09-09_to_2026-09-24_issued20260909T081102Z.nc",
-  "source_nc_sha256": "4a334535a5713539b83788ff916fbbac9814b2824183b6fe6bdef6f193814b27",
+  "forecast_issue_time_utc": "2026-09-09T09:28:15Z",
+  "fetch_time_utc": "2026-09-09T09:28:15Z",
+  "run_time_utc": "2026-09-09T09:30:24Z",
+  "source_nc": "ta_abs_2026-09-09_to_2026-09-24_issued20260909T092815Z.nc",
+  "source_nc_sha256": "c75cf274e02a5d35c1a6db2f4178eee5d610c65d61f6c0904995dbde17eded05",
   "time_start_utc": "2026-09-09T00:00:00Z",
   "time_end_utc": "2026-09-24T00:00:00Z",
   "n_hours": 361,
-  "frame_start_index": 9,
+  "frame_start_index": 10,
   "n_frames": 72,
   "timezone": "Europe/Dublin",
   "grid_crs": "EPSG:32629",
@@ -49,10 +49,6 @@
       "min_span_c": 2.0,
       "rescale": "per_frame: coldest pixel -> 0, warmest -> 1",
       "per_frame_domain_c": [
-        [
-          12.15,
-          14.15
-        ],
         [
           13.46,
           15.46
@@ -336,6 +332,10 @@
         [
           15.71,
           17.71
+        ],
+        [
+          16.2,
+          18.2
         ]
       ]
     }
@@ -355,12 +355,6 @@
     ]
   },
   "frames": [
-    {
-      "utc": "2026-09-09T09:00:00Z",
-      "local": "2026-09-09 10:00",
-      "hour_local": 10,
-      "day": 1
-    },
     {
       "utc": "2026-09-09T10:00:00Z",
       "local": "2026-09-09 11:00",
@@ -786,6 +780,12 @@
       "local": "2026-09-12 09:00",
       "hour_local": 9,
       "day": 4
+    },
+    {
+      "utc": "2026-09-12T09:00:00Z",
+      "local": "2026-09-12 10:00",
+      "hour_local": 10,
+      "day": 4
     }
   ],
   "all_times_utc": [
@@ -1157,7 +1157,9 @@
   "zoi": {
     "file": "zoi.geojson"
   },
-  "context_series": null,
+  "context_series": {
+    "file": "context_series.json"
+  },
   "context": {
     "buildings": {
       "file": "ctx_buildings.png",
