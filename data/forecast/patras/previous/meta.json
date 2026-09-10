@@ -3,15 +3,15 @@
   "display_name": "Patras",
   "simulation_name": "V29_forecast_lrc_pixel",
   "forecast_model": "ecmwf_ifs",
-  "forecast_issue_time_utc": "2026-09-09T08:01:42Z",
-  "fetch_time_utc": "2026-09-09T08:01:42Z",
-  "run_time_utc": "2026-09-09T08:09:05Z",
-  "source_nc": "ta_abs_2026-09-09_to_2026-09-24_issued20260909T080142Z.nc",
-  "source_nc_sha256": "6a4356e5dbcb20a5374ef514db94b931d3ba27fcf068add3641e6cf22a4e654b",
+  "forecast_issue_time_utc": "2026-09-09T09:18:04Z",
+  "fetch_time_utc": "2026-09-09T09:18:04Z",
+  "run_time_utc": "2026-09-09T09:26:03Z",
+  "source_nc": "ta_abs_2026-09-09_to_2026-09-24_issued20260909T091804Z.nc",
+  "source_nc_sha256": "34947f91b3569c08f1e9a6dbcded04ea9d2c1fab9fdca65118443a4923108f14",
   "time_start_utc": "2026-09-09T00:00:00Z",
   "time_end_utc": "2026-09-24T00:00:00Z",
   "n_hours": 361,
-  "frame_start_index": 9,
+  "frame_start_index": 10,
   "n_frames": 72,
   "timezone": "Europe/Athens",
   "grid_crs": "EPSG:32634",
@@ -49,10 +49,6 @@
       "min_span_c": 2.0,
       "rescale": "per_frame: coldest pixel -> 0, warmest -> 1",
       "per_frame_domain_c": [
-        [
-          19.65,
-          32.9
-        ],
         [
           20.61,
           34.05
@@ -336,6 +332,10 @@
         [
           17.23,
           30.55
+        ],
+        [
+          18.53,
+          31.92
         ]
       ]
     }
@@ -355,12 +355,6 @@
     ]
   },
   "frames": [
-    {
-      "utc": "2026-09-09T09:00:00Z",
-      "local": "2026-09-09 12:00",
-      "hour_local": 12,
-      "day": 1
-    },
     {
       "utc": "2026-09-09T10:00:00Z",
       "local": "2026-09-09 13:00",
@@ -785,6 +779,12 @@
       "utc": "2026-09-12T08:00:00Z",
       "local": "2026-09-12 11:00",
       "hour_local": 11,
+      "day": 4
+    },
+    {
+      "utc": "2026-09-12T09:00:00Z",
+      "local": "2026-09-12 12:00",
+      "hour_local": 12,
       "day": 4
     }
   ],
