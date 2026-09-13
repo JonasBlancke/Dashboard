@@ -1,13 +1,13 @@
 {
-  "generated_utc": "2026-09-13T09:57:53Z",
+  "generated_utc": "2026-09-13T10:02:43Z",
   "cities": [
     {
       "id": "dublin",
       "display_name": "Dublin",
       "path": "dublin/latest",
-      "issue_time_utc": "2026-09-13T05:02:31Z",
-      "run_time_utc": "2026-09-13T05:04:44Z",
-      "n_hours": 349,
+      "issue_time_utc": "2026-09-13T10:00:34Z",
+      "run_time_utc": "2026-09-13T10:02:37Z",
+      "n_hours": 361,
       "n_frames": 72,
       "timezone": "Europe/Dublin",
       "has_local_observations": true,
