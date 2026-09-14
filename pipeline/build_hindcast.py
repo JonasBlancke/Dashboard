@@ -86,7 +86,11 @@ def _load_archive(latest: Path, previous: Path) -> dict:
                 out[hr["utc"]] = {"data": np.array(cube[k], dtype="float32"),
                                   "source_issue": hr.get("source_issue")}
             print(f"  hindcast: loaded {len(out)} slabs from {base.name}/")
-            return out
+            if out:
+                return out
+            # an empty archive (0 slabs) is not authoritative — a run that never
+            # found a slab in-window would otherwise write this back every day,
+            # permanently shadowing the values.bin bootstrap below. Keep looking.
         except Exception as e:  # pragma: no cover - corrupt archive, start fresh
             print(f"  hindcast: could not read {base.name}/hindcast.* ({e})")
 
