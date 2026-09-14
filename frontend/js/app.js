@@ -1298,7 +1298,7 @@
     //      each particle carries its own jittered position / length / speed /
     //      life so the field reads as organic, not a marching grid. ----------
     const WindField = (() => {
-      let cv, ctx2, raf = 0, spd = 0, dir = 0, dpr = 1, ro = null;
+      let cv, ctx2, raf = 0, spd = 0, dir = 0, dpr = 1, ro = null, running = false;
       let aoiRings = null;         // [[ [lng,lat], … ], …] — clip to the AOI
       let parts = [];             // particle pool
       let lastTs = 0;
@@ -1352,6 +1352,7 @@
         };
       }
       function draw(ts) {
+        if (!running) { raf = 0; return; }   // a stale loop from a previous attach — let it die
         raf = requestAnimationFrame(draw);
         if (!cv || !ctx2) return;
         resize();                                    // keep in step with the map
@@ -1424,16 +1425,21 @@
           cv = g("fcWindField"); if (!cv) return;
           ctx2 = cv.getContext("2d");
           cv.hidden = false; lastTs = 0; resize();
-          window.addEventListener("resize", resize);
-          if (!ro && "ResizeObserver" in window) {
-            ro = new ResizeObserver(resize);
-            const host = g("fcMap"); if (host) ro.observe(host);
+          if (!ro) {
+            window.addEventListener("resize", resize);
+            if ("ResizeObserver" in window) {
+              ro = new ResizeObserver(resize);
+              const host = g("fcMap"); if (host) ro.observe(host);
+            }
           }
+          if (running) return;              // already animating — don't stack a second loop
+          running = true;
           if (!raf) raf = requestAnimationFrame(draw);
         },
         set(s, d) { if (s != null) spd = s; if (d != null) dir = d; },
         setAoi(rings) { aoiRings = rings || null; },
         stop() {
+          running = false;
           if (raf) cancelAnimationFrame(raf); raf = 0;
           if (ro) { ro.disconnect(); ro = null; }
           if (cv) cv.hidden = true;
