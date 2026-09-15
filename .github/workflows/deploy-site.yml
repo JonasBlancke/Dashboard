@@ -18,7 +18,10 @@ on:
       - "frontend/**"
       - "data/forecast/**"
   workflow_run:
-    workflows: ["daily-forecast"]
+    # GITHUB_TOKEN pushes (both of these workflows commit with it) never fire
+    # the `push` trigger above — GitHub's own loop guard — so each has to be
+    # named here explicitly to reach Pages.
+    workflows: ["daily-forecast", "hindcast-tick"]
     types: [completed]
   workflow_dispatch:
 
