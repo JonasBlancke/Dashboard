@@ -214,11 +214,24 @@ def update_hindcast(city_id: str, cfg: dict | None = None,
 
     archive = _load_archive(latest, previous)
 
-    # upsert every fresh slab
-    for utc, slab, issue in _fresh_slabs(meta, values_p):
-        cur = archive.get(utc)
-        if cur is None or _better_source(cur["source_issue"], issue, utc):
-            archive[utc] = {"data": slab, "source_issue": issue}
+    # upsert every fresh slab. Two sources, latest/ preferred on conflict via
+    # _better_source: today's own forecast (latest/values.bin) — freshly
+    # issued, so on the very run it lands every one of its hours is still in
+    # the future and none of them enter `kept` below yet — and yesterday's
+    # forecast (previous/values.bin), whose lead time has shrunk by a day
+    # since it was written, so some of its hours may have crossed into the
+    # past just now. Re-checking previous/ here (not only as the one-time
+    # _load_archive bootstrap) is what lets the archive actually grow one day
+    # at a time instead of sitting frozen at whatever _load_archive returned.
+    pmeta_p, pvalues_p = previous / "meta.json", previous / "values.bin"
+    sources = [(meta, values_p)]
+    if pmeta_p.is_file() and pvalues_p.is_file():
+        sources.append((json.loads(pmeta_p.read_text(encoding="utf-8")), pvalues_p))
+    for smeta, svalues in sources:
+        for utc, slab, issue in _fresh_slabs(smeta, svalues):
+            cur = archive.get(utc)
+            if cur is None or _better_source(cur["source_issue"], issue, utc):
+                archive[utc] = {"data": slab, "source_issue": issue}
 
     # keep only [now-48h, now]: drop older than the cutoff and anything still in
     # the future (a slab is "past" only once wall-clock has passed it)
