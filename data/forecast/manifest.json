@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-09-15T07:52:58Z",
+  "generated_utc": "2026-09-15T09:40:00Z",
   "cities": [
     {
       "id": "dublin",
@@ -11,7 +11,7 @@
       "n_frames": 72,
       "timezone": "Europe/Dublin",
       "has_local_observations": true,
-      "hindcast_hours": 3,
+      "hindcast_hours": 4,
       "has_hindcast_frames": true,
       "n_stations": 0
     },
@@ -19,13 +19,13 @@
       "id": "ghent",
       "display_name": "Ghent",
       "path": "ghent/latest",
-      "issue_time_utc": "2026-09-15T07:23:53Z",
-      "run_time_utc": "2026-09-15T07:26:36Z",
+      "issue_time_utc": "2026-09-15T09:37:48Z",
+      "run_time_utc": "2026-09-15T09:39:35Z",
       "n_hours": 361,
       "n_frames": 72,
       "timezone": "Europe/Brussels",
       "has_local_observations": true,
-      "hindcast_hours": 5,
+      "hindcast_hours": 7,
       "has_hindcast_frames": true,
       "n_stations": 6
     },
@@ -39,7 +39,7 @@
       "n_frames": 72,
       "timezone": "Europe/Athens",
       "has_local_observations": true,
-      "hindcast_hours": 19,
+      "hindcast_hours": 20,
       "has_hindcast_frames": true,
       "n_stations": 0
     },
@@ -53,7 +53,7 @@
       "n_frames": 72,
       "timezone": "Pacific/Auckland",
       "has_local_observations": true,
-      "hindcast_hours": 3,
+      "hindcast_hours": 4,
       "has_hindcast_frames": true,
       "n_stations": 0
     }
