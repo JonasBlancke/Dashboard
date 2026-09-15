@@ -3,15 +3,15 @@
   "display_name": "Dublin",
   "simulation_name": "V29_forecast_lrc_pixel",
   "forecast_model": "ecmwf_ifs",
-  "forecast_issue_time_utc": "2026-09-14T08:17:34Z",
-  "fetch_time_utc": "2026-09-14T08:17:34Z",
-  "run_time_utc": "2026-09-14T08:19:45Z",
-  "source_nc": "ta_abs_2026-09-14_to_2026-09-29_issued20260914T081734Z.nc",
-  "source_nc_sha256": "85760575b2cb576a673040fbca7e0974903b7b53da40f7911c9523b0b9269009",
+  "forecast_issue_time_utc": "2026-09-14T10:32:43Z",
+  "fetch_time_utc": "2026-09-14T10:32:43Z",
+  "run_time_utc": "2026-09-14T10:34:45Z",
+  "source_nc": "ta_abs_2026-09-14_to_2026-09-29_issued20260914T103243Z.nc",
+  "source_nc_sha256": "600a1f6a5544ff24d31ad9c10ed0ff9ecb6caa5b528e9229056729b4dc8fb6ee",
   "time_start_utc": "2026-09-14T00:00:00Z",
   "time_end_utc": "2026-09-29T00:00:00Z",
   "n_hours": 361,
-  "frame_start_index": 9,
+  "frame_start_index": 11,
   "n_frames": 72,
   "timezone": "Europe/Dublin",
   "grid_crs": "EPSG:32629",
@@ -49,14 +49,6 @@
       "min_span_c": 2.0,
       "rescale": "per_frame: coldest pixel -> 0, warmest -> 1",
       "per_frame_domain_c": [
-        [
-          17.09,
-          19.09
-        ],
-        [
-          18.31,
-          20.31
-        ],
         [
           19.72,
           21.72
@@ -336,6 +328,14 @@
         [
           12.24,
           14.24
+        ],
+        [
+          12.77,
+          14.77
+        ],
+        [
+          13.48,
+          15.48
         ]
       ]
     }
@@ -355,18 +355,6 @@
     ]
   },
   "frames": [
-    {
-      "utc": "2026-09-14T09:00:00Z",
-      "local": "2026-09-14 10:00",
-      "hour_local": 10,
-      "day": 1
-    },
-    {
-      "utc": "2026-09-14T10:00:00Z",
-      "local": "2026-09-14 11:00",
-      "hour_local": 11,
-      "day": 1
-    },
     {
       "utc": "2026-09-14T11:00:00Z",
       "local": "2026-09-14 12:00",
@@ -786,6 +774,18 @@
       "local": "2026-09-17 09:00",
       "hour_local": 9,
       "day": 4
+    },
+    {
+      "utc": "2026-09-17T09:00:00Z",
+      "local": "2026-09-17 10:00",
+      "hour_local": 10,
+      "day": 4
+    },
+    {
+      "utc": "2026-09-17T10:00:00Z",
+      "local": "2026-09-17 11:00",
+      "hour_local": 11,
+      "day": 4
     }
   ],
   "all_times_utc": [
@@ -1157,9 +1157,7 @@
   "zoi": {
     "file": "zoi.geojson"
   },
-  "context_series": {
-    "file": "context_series.json"
-  },
+  "context_series": null,
   "context": {
     "buildings": {
       "file": "ctx_buildings.png",
