@@ -183,23 +183,35 @@ jobs:
             --ml-urbanheat "$ML_URBANHEAT_DIR" \
             ${{ github.event.inputs.date && format('--date {0}', github.event.inputs.date) || '' }}
 
-      - name: Commit (only if a newer forecast landed)
+      - name: Commit (full frames on a new issue; hindcast/stations always)
         run: |
           set -euo pipefail
           d="data/forecast/${{ matrix.city }}"
           new_issue=$(python -c "import json;print(json.load(open('$d/latest/meta.json'))['forecast_issue_time_utc'])")
-          if [ "$new_issue" = "$(cat "$RUNNER_TEMP/prev_issue.txt")" ]; then
-            echo "issue time unchanged ($new_issue) — nothing to commit"; exit 0
-          fi
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           # Commit ONLY this city's frames — never manifest.json. Sibling matrix
           # jobs regenerate the manifest too, so committing it here always
           # conflicts on rebase. It is rebuilt from every */latest/meta.json
           # after the pull, below.
-          for p in "$d/latest" "$d/previous"; do
-            [ -e "$p" ] && git add -f "$p"
-          done
+          if [ "$new_issue" = "$(cat "$RUNNER_TEMP/prev_issue.txt")" ]; then
+            # ECMWF hasn't published a new run — the big raster frames
+            # (values.bin, frame_*.png, …) are byte-identical to what's already
+            # committed, so skip those. update_hindcast() and fetch_stations()
+            # still moved forward (new elapsed hours rolled into the rolling
+            # 48h archive, fresh station readings) and were regenerated on
+            # this runner regardless — commit THOSE or the rolling window
+            # never advances and stays stuck at whatever it had the day the
+            # issue time last changed.
+            echo "issue time unchanged ($new_issue) — frames skipped, hindcast/stations still committed"
+            for p in hindcast.bin hindcast.json hindcast_frames stations.geojson stations; do
+              [ -e "$d/latest/$p" ] && git add -f "$d/latest/$p"
+            done
+          else
+            for p in "$d/latest" "$d/previous"; do
+              [ -e "$p" ] && git add -f "$p"
+            done
+          fi
           if git diff --cached --quiet; then echo "no city-frame changes"; exit 0; fi
           git commit -m "chore(data): ${{ matrix.city }} forecast ${new_issue%%T*}"
           for attempt in 1 2 3 4 5; do
