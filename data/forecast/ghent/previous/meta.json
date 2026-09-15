@@ -3,15 +3,15 @@
   "display_name": "Ghent",
   "simulation_name": "V29_forecast_lrc_pixel",
   "forecast_model": "ecmwf_ifs",
-  "forecast_issue_time_utc": "2026-09-14T08:04:57Z",
-  "fetch_time_utc": "2026-09-14T08:04:57Z",
-  "run_time_utc": "2026-09-14T08:07:49Z",
-  "source_nc": "ta_abs_2026-09-14_to_2026-09-29_issued20260914T080457Z.nc",
-  "source_nc_sha256": "8354833863b81252bd7e2b1a0a4dc802aa240ded8039f8aa60d0ec5597891177",
+  "forecast_issue_time_utc": "2026-09-14T10:10:16Z",
+  "fetch_time_utc": "2026-09-14T10:10:16Z",
+  "run_time_utc": "2026-09-14T10:13:01Z",
+  "source_nc": "ta_abs_2026-09-14_to_2026-09-29_issued20260914T101016Z.nc",
+  "source_nc_sha256": "e0481b9a1b9f71c2f7f8ec24f8dad4237e6210c00e179d57654a582d553d4b39",
   "time_start_utc": "2026-09-14T00:00:00Z",
   "time_end_utc": "2026-09-29T00:00:00Z",
   "n_hours": 361,
-  "frame_start_index": 9,
+  "frame_start_index": 11,
   "n_frames": 72,
   "timezone": "Europe/Brussels",
   "grid_crs": "EPSG:32631",
@@ -49,14 +49,6 @@
       "min_span_c": 2.0,
       "rescale": "per_frame: coldest pixel -> 0, warmest -> 1",
       "per_frame_domain_c": [
-        [
-          18.25,
-          20.25
-        ],
-        [
-          19.17,
-          21.17
-        ],
         [
           19.81,
           21.81
@@ -336,6 +328,14 @@
         [
           13.91,
           15.91
+        ],
+        [
+          14.94,
+          16.94
+        ],
+        [
+          16.33,
+          18.33
         ]
       ]
     }
@@ -355,18 +355,6 @@
     ]
   },
   "frames": [
-    {
-      "utc": "2026-09-14T09:00:00Z",
-      "local": "2026-09-14 11:00",
-      "hour_local": 11,
-      "day": 1
-    },
-    {
-      "utc": "2026-09-14T10:00:00Z",
-      "local": "2026-09-14 12:00",
-      "hour_local": 12,
-      "day": 1
-    },
     {
       "utc": "2026-09-14T11:00:00Z",
       "local": "2026-09-14 13:00",
@@ -785,6 +773,18 @@
       "utc": "2026-09-17T08:00:00Z",
       "local": "2026-09-17 10:00",
       "hour_local": 10,
+      "day": 4
+    },
+    {
+      "utc": "2026-09-17T09:00:00Z",
+      "local": "2026-09-17 11:00",
+      "hour_local": 11,
+      "day": 4
+    },
+    {
+      "utc": "2026-09-17T10:00:00Z",
+      "local": "2026-09-17 12:00",
+      "hour_local": 12,
       "day": 4
     }
   ],
