@@ -2,7 +2,7 @@
   "file": "hindcast.bin",
   "width": 361,
   "height": 252,
-  "n_hours": 5,
+  "n_hours": 11,
   "index": "hour",
   "dtype": "float32",
   "bounds_wgs84": [
@@ -12,7 +12,7 @@
     53.414274
   ],
   "window_hours": 48,
-  "generated_utc": "2026-09-15T09:54:33Z",
+  "generated_utc": "2026-09-15T15:28:32Z",
   "hours": [
     {
       "utc": "2026-09-14T06:00:00Z",
@@ -43,6 +43,42 @@
       "local": "2026-09-15 10:00",
       "hour_local": 10,
       "source_issue": "2026-09-15T07:42:38Z"
+    },
+    {
+      "utc": "2026-09-15T10:00:00Z",
+      "local": "2026-09-15 11:00",
+      "hour_local": 11,
+      "source_issue": "2026-09-15T09:52:01Z"
+    },
+    {
+      "utc": "2026-09-15T11:00:00Z",
+      "local": "2026-09-15 12:00",
+      "hour_local": 12,
+      "source_issue": "2026-09-15T09:52:01Z"
+    },
+    {
+      "utc": "2026-09-15T12:00:00Z",
+      "local": "2026-09-15 13:00",
+      "hour_local": 13,
+      "source_issue": "2026-09-15T09:52:01Z"
+    },
+    {
+      "utc": "2026-09-15T13:00:00Z",
+      "local": "2026-09-15 14:00",
+      "hour_local": 14,
+      "source_issue": "2026-09-15T09:52:01Z"
+    },
+    {
+      "utc": "2026-09-15T14:00:00Z",
+      "local": "2026-09-15 15:00",
+      "hour_local": 15,
+      "source_issue": "2026-09-15T09:52:01Z"
+    },
+    {
+      "utc": "2026-09-15T15:00:00Z",
+      "local": "2026-09-15 16:00",
+      "hour_local": 16,
+      "source_issue": "2026-09-15T09:52:01Z"
     }
   ]
 }
