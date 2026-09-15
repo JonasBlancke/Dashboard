@@ -2,7 +2,7 @@
   "file": "hindcast.bin",
   "width": 577,
   "height": 555,
-  "n_hours": 19,
+  "n_hours": 20,
   "index": "hour",
   "dtype": "float32",
   "bounds_wgs84": [
@@ -12,7 +12,7 @@
     38.34329
   ],
   "window_hours": 48,
-  "generated_utc": "2026-09-15T07:37:58Z",
+  "generated_utc": "2026-09-15T08:38:28Z",
   "hours": [
     {
       "utc": "2026-09-14T11:00:00Z",
@@ -127,6 +127,12 @@
       "local": "2026-09-15 10:00",
       "hour_local": 10,
       "source_issue": "2026-09-15T06:52:24Z"
+    },
+    {
+      "utc": "2026-09-15T08:00:00Z",
+      "local": "2026-09-15 11:00",
+      "hour_local": 11,
+      "source_issue": "2026-09-15T07:30:06Z"
     }
   ]
 }
