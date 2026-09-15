@@ -77,7 +77,10 @@ jobs:
       - name: Install deps
         run: |
           python -m pip install -U pip
-          pip install numpy rasterio pillow pyyaml
+          # build_hindcast imports build_forecast (for the shared RAMP/colorize)
+          # which itself imports xarray/netCDF4 even though this path never
+          # touches a .nc file — needed just to satisfy the module-level import.
+          pip install numpy rasterio pillow pyyaml xarray netCDF4
 
       - name: Re-run hindcast merge + station fetch
         run: |
