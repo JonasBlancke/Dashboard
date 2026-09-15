@@ -1,0 +1,110 @@
+name: hindcast-tick
+
+# Re-derive the rolling 48h hindcast + station observations between daily
+# forecast runs, so no elapsed hour is ever missed.
+#
+# The reason this exists: update_hindcast() only folds an hour into the
+# archive once it has crossed from "future" to "elapsed" relative to
+# wall-clock. It can see that hour in exactly two places — latest/values.bin
+# (today's run) and previous/values.bin (yesterday's, since daily-forecast
+# rotates latest/ -> previous/ before every run). If neither of those two
+# runs happens to fire while that hour is freshly elapsed, the hour is lost
+# forever once previous/ is rotated away again. With one run/day that's a
+# ~24h-wide game of chance per hour. Running the merge on its own, frequent
+# cadence — independent of the (expensive, rate-limited) ECMWF fetch —
+# closes that gap: every hour gets many chances to be picked up while it's
+# still inside latest/'s or previous/'s 72h coverage.
+#
+# Cheap: no model run, no Earth Engine, no ECMWF/Open-Meteo fetch — just
+# re-reads the values.bin already on disk from the last daily-forecast run
+# and re-fetches the (free, unauthenticated) station APIs.
+
+on:
+  schedule:
+    - cron: "15 */2 * * *"    # every 2 h, offset from daily-forecast's :43
+  workflow_dispatch:
+    inputs:
+      city: { description: "city id (default: all enabled)", required: false }
+
+concurrency:
+  group: daily-forecast       # same group as daily-forecast.yml — never race its commits
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      cities: ${{ steps.pick.outputs.cities }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: pick
+        run: |
+          pip install --quiet pyyaml
+          python - <<'PY'
+          import json, os, yaml
+          reg = yaml.safe_load(open("cities.forecast.yaml"))
+          want = os.environ.get("INPUT_CITY", "").strip()
+          ids = [k for k, v in reg["cities"].items()
+                 if v.get("enabled", True) and (not want or k == want)]
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write("cities=" + json.dumps(ids) + "\n")
+          print("cities:", ids)
+          PY
+        env:
+          INPUT_CITY: ${{ github.event.inputs.city }}
+
+  tick:
+    needs: matrix
+    if: needs.matrix.outputs.cities != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        city: ${{ fromJson(needs.matrix.outputs.cities) }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install -U pip
+          pip install numpy rasterio pillow pyyaml
+
+      - name: Re-run hindcast merge + station fetch
+        run: |
+          set -euo pipefail
+          d="data/forecast/${{ matrix.city }}"
+          if [ ! -f "$d/latest/meta.json" ]; then
+            echo "no latest/ build yet for ${{ matrix.city }} — skipped"; exit 0
+          fi
+          python pipeline/build_hindcast.py --city "${{ matrix.city }}"
+          python pipeline/fetch_forecast_stations.py --city "${{ matrix.city }}" || \
+            echo "  station fetch skipped (best-effort)"
+
+      - name: Commit (only if the archive actually changed)
+        run: |
+          set -euo pipefail
+          d="data/forecast/${{ matrix.city }}"
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          for p in hindcast.bin hindcast.json hindcast_frames stations.geojson stations; do
+            [ -e "$d/latest/$p" ] && git add -f "$d/latest/$p"
+          done
+          if git diff --cached --quiet; then echo "no change"; exit 0; fi
+          git commit -m "chore(data): ${{ matrix.city }} hindcast tick $(date -u +%Y-%m-%dT%H:%MZ)"
+          for attempt in 1 2 3 4 5; do
+            if git pull --rebase --autostash; then
+              git push && { echo "pushed"; exit 0; }
+            fi
+            echo "push attempt $attempt failed — retrying"; git rebase --abort 2>/dev/null || true; sleep $((attempt*4))
+          done
+          exit 1
