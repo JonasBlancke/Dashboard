@@ -2,7 +2,7 @@
   "file": "hindcast.bin",
   "width": 577,
   "height": 555,
-  "n_hours": 41,
+  "n_hours": 45,
   "index": "hour",
   "dtype": "float32",
   "bounds_wgs84": [
@@ -12,7 +12,7 @@
     38.34329
   ],
   "window_hours": 48,
-  "generated_utc": "2026-09-16T05:00:33Z",
+  "generated_utc": "2026-09-16T09:47:03Z",
   "hours": [
     {
       "utc": "2026-09-14T11:00:00Z",
@@ -258,6 +258,30 @@
       "utc": "2026-09-16T05:00:00Z",
       "local": "2026-09-16 08:00",
       "hour_local": 8,
+      "source_issue": "2026-09-16T04:53:06Z"
+    },
+    {
+      "utc": "2026-09-16T06:00:00Z",
+      "local": "2026-09-16 09:00",
+      "hour_local": 9,
+      "source_issue": "2026-09-16T04:53:06Z"
+    },
+    {
+      "utc": "2026-09-16T07:00:00Z",
+      "local": "2026-09-16 10:00",
+      "hour_local": 10,
+      "source_issue": "2026-09-16T04:53:06Z"
+    },
+    {
+      "utc": "2026-09-16T08:00:00Z",
+      "local": "2026-09-16 11:00",
+      "hour_local": 11,
+      "source_issue": "2026-09-16T04:53:06Z"
+    },
+    {
+      "utc": "2026-09-16T09:00:00Z",
+      "local": "2026-09-16 12:00",
+      "hour_local": 12,
       "source_issue": "2026-09-16T04:53:06Z"
     }
   ]
