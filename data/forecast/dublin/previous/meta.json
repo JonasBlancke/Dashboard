@@ -3,15 +3,15 @@
   "display_name": "Dublin",
   "simulation_name": "V29_forecast_lrc_pixel",
   "forecast_model": "ecmwf_ifs",
-  "forecast_issue_time_utc": "2026-09-15T07:42:38Z",
-  "fetch_time_utc": "2026-09-15T07:42:38Z",
-  "run_time_utc": "2026-09-15T07:44:57Z",
-  "source_nc": "ta_abs_2026-09-15_to_2026-09-30_issued20260915T074238Z.nc",
-  "source_nc_sha256": "1200a266845a2f653a9cfbf5771a468cc6b8ddec280065f11b7e4d6084bf96a4",
+  "forecast_issue_time_utc": "2026-09-15T09:52:01Z",
+  "fetch_time_utc": "2026-09-15T09:52:01Z",
+  "run_time_utc": "2026-09-15T09:54:32Z",
+  "source_nc": "ta_abs_2026-09-15_to_2026-09-30_issued20260915T095201Z.nc",
+  "source_nc_sha256": "c7d3e01949acfb7ab06642095fa839db79f15676323ea9e3a627f9da28beaf96",
   "time_start_utc": "2026-09-15T00:00:00Z",
   "time_end_utc": "2026-09-30T00:00:00Z",
   "n_hours": 361,
-  "frame_start_index": 8,
+  "frame_start_index": 10,
   "n_frames": 72,
   "timezone": "Europe/Dublin",
   "grid_crs": "EPSG:32629",
@@ -49,14 +49,6 @@
       "min_span_c": 2.0,
       "rescale": "per_frame: coldest pixel -> 0, warmest -> 1",
       "per_frame_domain_c": [
-        [
-          13.73,
-          15.73
-        ],
-        [
-          14.63,
-          16.63
-        ],
         [
           15.44,
           17.44
@@ -336,6 +328,14 @@
         [
           11.69,
           13.69
+        ],
+        [
+          12.82,
+          14.82
+        ],
+        [
+          13.8,
+          15.8
         ]
       ]
     }
@@ -355,18 +355,6 @@
     ]
   },
   "frames": [
-    {
-      "utc": "2026-09-15T08:00:00Z",
-      "local": "2026-09-15 09:00",
-      "hour_local": 9,
-      "day": 1
-    },
-    {
-      "utc": "2026-09-15T09:00:00Z",
-      "local": "2026-09-15 10:00",
-      "hour_local": 10,
-      "day": 1
-    },
     {
       "utc": "2026-09-15T10:00:00Z",
       "local": "2026-09-15 11:00",
@@ -785,6 +773,18 @@
       "utc": "2026-09-18T07:00:00Z",
       "local": "2026-09-18 08:00",
       "hour_local": 8,
+      "day": 4
+    },
+    {
+      "utc": "2026-09-18T08:00:00Z",
+      "local": "2026-09-18 09:00",
+      "hour_local": 9,
+      "day": 4
+    },
+    {
+      "utc": "2026-09-18T09:00:00Z",
+      "local": "2026-09-18 10:00",
+      "hour_local": 10,
       "day": 4
     }
   ],
