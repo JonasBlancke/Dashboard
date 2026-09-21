@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-09-21T10:36:28Z",
+  "generated_utc": "2026-09-21T10:43:38Z",
   "cities": [
     {
       "id": "dublin",
@@ -47,9 +47,9 @@
       "id": "wellington",
       "display_name": "Wellington",
       "path": "wellington/latest",
-      "issue_time_utc": "2026-09-21T05:16:12Z",
-      "run_time_utc": "2026-09-21T05:19:19Z",
-      "n_hours": 349,
+      "issue_time_utc": "2026-09-21T10:40:04Z",
+      "run_time_utc": "2026-09-21T10:43:14Z",
+      "n_hours": 361,
       "n_frames": 72,
       "timezone": "Pacific/Auckland",
       "has_local_observations": true,
