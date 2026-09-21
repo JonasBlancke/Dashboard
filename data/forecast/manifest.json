@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-09-21T10:19:02Z",
+  "generated_utc": "2026-09-21T10:30:21Z",
   "cities": [
     {
       "id": "dublin",
@@ -33,9 +33,9 @@
       "id": "patras",
       "display_name": "Patras",
       "path": "patras/latest",
-      "issue_time_utc": "2026-09-21T04:56:00Z",
-      "run_time_utc": "2026-09-21T05:03:12Z",
-      "n_hours": 349,
+      "issue_time_utc": "2026-09-21T10:22:24Z",
+      "run_time_utc": "2026-09-21T10:29:47Z",
+      "n_hours": 361,
       "n_frames": 72,
       "timezone": "Europe/Athens",
       "has_local_observations": true,
