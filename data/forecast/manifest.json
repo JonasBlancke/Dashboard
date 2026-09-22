@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-09-22T05:21:52Z",
+  "generated_utc": "2026-09-22T09:35:17Z",
   "cities": [
     {
       "id": "dublin",
@@ -19,9 +19,9 @@
       "id": "ghent",
       "display_name": "Ghent",
       "path": "ghent/latest",
-      "issue_time_utc": "2026-09-22T04:50:26Z",
-      "run_time_utc": "2026-09-22T04:53:06Z",
-      "n_hours": 349,
+      "issue_time_utc": "2026-09-22T09:31:59Z",
+      "run_time_utc": "2026-09-22T09:34:43Z",
+      "n_hours": 361,
       "n_frames": 72,
       "timezone": "Europe/Brussels",
       "has_local_observations": true,
