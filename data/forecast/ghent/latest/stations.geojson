@@ -16,8 +16,8 @@
         "provider": "vlinder",
         "n_points_5min": 576,
         "n_points_hourly": 49,
-        "first_time": "2026-09-28T10:55:00+00:00",
-        "last_time": "2026-09-30T10:50:00+00:00"
+        "first_time": "2026-09-28T16:35:00+00:00",
+        "last_time": "2026-09-30T16:30:00+00:00"
       }
     },
     {
@@ -35,8 +35,8 @@
         "provider": "vlinder",
         "n_points_5min": 576,
         "n_points_hourly": 49,
-        "first_time": "2026-09-28T10:55:00+00:00",
-        "last_time": "2026-09-30T10:50:00+00:00"
+        "first_time": "2026-09-28T16:35:00+00:00",
+        "last_time": "2026-09-30T16:30:00+00:00"
       }
     },
     {
@@ -54,8 +54,8 @@
         "provider": "vlinder",
         "n_points_5min": 576,
         "n_points_hourly": 49,
-        "first_time": "2026-09-28T10:55:00+00:00",
-        "last_time": "2026-09-30T10:50:00+00:00"
+        "first_time": "2026-09-28T16:35:00+00:00",
+        "last_time": "2026-09-30T16:30:00+00:00"
       }
     },
     {
@@ -73,8 +73,8 @@
         "provider": "vlinder",
         "n_points_5min": 576,
         "n_points_hourly": 49,
-        "first_time": "2026-09-28T10:55:00+00:00",
-        "last_time": "2026-09-30T10:50:00+00:00"
+        "first_time": "2026-09-28T16:35:00+00:00",
+        "last_time": "2026-09-30T16:30:00+00:00"
       }
     },
     {
@@ -90,10 +90,10 @@
         "slug": "vlinder02",
         "name": "Sterre",
         "provider": "vlinder",
-        "n_points_5min": 572,
+        "n_points_5min": 571,
         "n_points_hourly": 49,
-        "first_time": "2026-09-28T10:55:00+00:00",
-        "last_time": "2026-09-30T10:50:00+00:00"
+        "first_time": "2026-09-28T16:35:00+00:00",
+        "last_time": "2026-09-30T16:25:00+00:00"
       }
     },
     {
@@ -111,15 +111,15 @@
         "provider": "vlinder",
         "n_points_5min": 576,
         "n_points_hourly": 49,
-        "first_time": "2026-09-28T10:55:00+00:00",
-        "last_time": "2026-09-30T10:50:00+00:00"
+        "first_time": "2026-09-28T16:35:00+00:00",
+        "last_time": "2026-09-30T16:30:00+00:00"
       }
     }
   ],
   "properties": {
     "city": "ghent",
-    "window_start": "2026-09-28T10:52:18Z",
-    "window_end": "2026-09-30T10:52:18Z",
-    "fetched_at": "2026-09-30T10:52:39Z"
+    "window_start": "2026-09-28T16:31:46Z",
+    "window_end": "2026-09-30T16:31:46Z",
+    "fetched_at": "2026-09-30T16:32:12Z"
   }
 }
