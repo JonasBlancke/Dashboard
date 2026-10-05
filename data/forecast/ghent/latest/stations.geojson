@@ -15,9 +15,9 @@
         "name": "MOCCA Honda",
         "provider": "vlinder",
         "n_points_5min": 576,
-        "n_points_hourly": 49,
-        "first_time": "2026-10-03T09:05:00+00:00",
-        "last_time": "2026-10-05T09:00:00+00:00"
+        "n_points_hourly": 48,
+        "first_time": "2026-10-03T12:00:00+00:00",
+        "last_time": "2026-10-05T11:55:00+00:00"
       }
     },
     {
@@ -34,9 +34,9 @@
         "name": "MOCCA Plantentuin",
         "provider": "vlinder",
         "n_points_5min": 576,
-        "n_points_hourly": 49,
-        "first_time": "2026-10-03T09:05:00+00:00",
-        "last_time": "2026-10-05T09:00:00+00:00"
+        "n_points_hourly": 48,
+        "first_time": "2026-10-03T12:00:00+00:00",
+        "last_time": "2026-10-05T11:55:00+00:00"
       }
     },
     {
@@ -53,9 +53,9 @@
         "name": "MOCCA Provinciehuis",
         "provider": "vlinder",
         "n_points_5min": 576,
-        "n_points_hourly": 49,
-        "first_time": "2026-10-03T09:05:00+00:00",
-        "last_time": "2026-10-05T09:00:00+00:00"
+        "n_points_hourly": 48,
+        "first_time": "2026-10-03T12:00:00+00:00",
+        "last_time": "2026-10-05T11:55:00+00:00"
       }
     },
     {
@@ -72,9 +72,9 @@
         "name": "MOCCA Tweekerken",
         "provider": "vlinder",
         "n_points_5min": 576,
-        "n_points_hourly": 49,
-        "first_time": "2026-10-03T09:05:00+00:00",
-        "last_time": "2026-10-05T09:00:00+00:00"
+        "n_points_hourly": 48,
+        "first_time": "2026-10-03T12:00:00+00:00",
+        "last_time": "2026-10-05T11:55:00+00:00"
       }
     },
     {
@@ -92,8 +92,8 @@
         "provider": "vlinder",
         "n_points_5min": 572,
         "n_points_hourly": 48,
-        "first_time": "2026-10-03T09:05:00+00:00",
-        "last_time": "2026-10-05T08:55:00+00:00"
+        "first_time": "2026-10-03T12:00:00+00:00",
+        "last_time": "2026-10-05T11:55:00+00:00"
       }
     },
     {
@@ -110,16 +110,16 @@
         "name": "MOCCA Wondelgem",
         "provider": "vlinder",
         "n_points_5min": 576,
-        "n_points_hourly": 49,
-        "first_time": "2026-10-03T09:05:00+00:00",
-        "last_time": "2026-10-05T09:00:00+00:00"
+        "n_points_hourly": 48,
+        "first_time": "2026-10-03T12:00:00+00:00",
+        "last_time": "2026-10-05T11:55:00+00:00"
       }
     }
   ],
   "properties": {
     "city": "ghent",
-    "window_start": "2026-10-03T09:04:09Z",
-    "window_end": "2026-10-05T09:04:09Z",
-    "fetched_at": "2026-10-05T09:04:28Z"
+    "window_start": "2026-10-03T11:57:46Z",
+    "window_end": "2026-10-05T11:57:46Z",
+    "fetched_at": "2026-10-05T11:58:08Z"
   }
 }
