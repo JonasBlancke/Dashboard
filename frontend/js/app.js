@@ -682,6 +682,7 @@
         (mode === "uhi" ? "frame_uhi_" : "frame_") + String(i).padStart(3, "0") + ".png",
       values: (c) => `/data/forecast/${c}/latest/values.bin`,
       asset: (c, f) => `/data/forecast/${c}/latest/${f}`,
+      buildings: (c) => `/data/buildings/${c}/`,   // z/x/y.pbf + tiles.json
       // rolling 48 h hindcast (past grid + past map frames) + in-AOI stations
       hindcast: (c) => `/data/forecast/${c}/latest/hindcast.bin`,
       hindcastMeta: (c) => `/data/forecast/${c}/latest/hindcast.json`,
@@ -901,6 +902,14 @@
         } catch (e) { aoiRings = null; }
       }
 
+      // building footprints as vector tiles (pipeline/build_buildings.py) —
+      // optional; without them the low-res ctx_buildings.png overlay is used
+      S.bTiles = null;
+      try {
+        const r = await fetch(abs(FC.buildings(cid) + "tiles.json") + S.v);
+        if (r.ok) S.bTiles = await r.json();
+      } catch (e) { S.bTiles = null; }
+
       syncStationsChip();
       buildMap(m);
       WindField.setAoi(aoiRings);
@@ -1034,11 +1043,25 @@
         // water, trees, buildings (buildings always readable on top).
         const ctx = S.meta.context || {};
         for (const key of ["water", "trees", "buildings"]) {
-          if (!ctx[key]) continue;
           const id = "ctx-" + key;
+          if (key === "buildings" && S.bTiles) {
+            // vector footprints — crisp at any zoom (overzoomed past maxzoom)
+            map.addSource(id + "-vec", { type: "vector",
+              tiles: [abs(FC.buildings(S.city) + "{z}/{x}/{y}.pbf")],
+              minzoom: S.bTiles.minzoom, maxzoom: S.bTiles.maxzoom,
+              bounds: S.bTiles.bounds });
+            map.addLayer({ id: id + "-vec", type: "fill", source: id + "-vec",
+              "source-layer": "buildings", minzoom: S.bTiles.minzoom,
+              layout: { visibility: S.layers.buildings ? "visible" : "none" },
+              paint: { "fill-color": "#0e0e10", "fill-opacity": 0.95,
+                       "fill-antialias": true } });
+          }
+          if (!ctx[key]) continue;
           map.addSource(id, { type: "image",
             url: abs(FC.asset(S.city, ctx[key].file)) + S.v, coordinates: box });
           map.addLayer({ id, type: "raster", source: id,
+            // with vector footprints the PNG only covers the zoomed-out view
+            ...(key === "buildings" && S.bTiles ? { maxzoom: S.bTiles.minzoom } : {}),
             layout: { visibility: S.layers[key] ? "visible" : "none" },
             paint: { "raster-opacity": key === "trees" ? 0.72
                        : key === "water" ? 0.85 : 0.95,
@@ -1115,6 +1138,7 @@
       set("osm", S.layers.basemap);
       set(OV, S.layers.forecast);
       set("ctx-buildings", S.layers.buildings);
+      set("ctx-buildings-vec", S.layers.buildings);
       set("ctx-trees", S.layers.trees);
       set("ctx-water", S.layers.water);
       set("stations", S.layers.stations);
@@ -1328,8 +1352,12 @@
         const host = g("fcMap") || cv;
         const r = host.getBoundingClientRect();
         const w = Math.max(1, Math.round(r.width)), h = Math.max(1, Math.round(r.height));
-        if (cv.width !== w * dpr || cv.height !== h * dpr) {
-          cv.width = w * dpr; cv.height = h * dpr;
+        // canvas sizes are integers: compare against the rounded value, or a
+        // fractional dpr (125 % / 150 % display scaling, browser zoom) never
+        // matches and every frame re-seeds all particles — "super fast" arrows
+        const pw = Math.round(w * dpr), ph = Math.round(h * dpr);
+        if (cv.width !== pw || cv.height !== ph) {
+          cv.width = pw; cv.height = ph;
           cv.style.width = w + "px"; cv.style.height = h + "px";
           seed(w, h);
         }

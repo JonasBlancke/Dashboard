@@ -44,6 +44,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Assemble Live-Forecast-only site
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           rm -rf _site && mkdir -p _site
@@ -52,6 +54,16 @@ jobs:
           mkdir -p _site/data
           cp -r data/forecast _site/data/
           rm -rf _site/data/forecast/_spatial
+
+          # building footprint vector tiles (static; built by
+          # pipeline/build_buildings.py, shipped on the site-assets Release).
+          # Optional — the map falls back to the PNG overlay without them.
+          if gh release download site-assets -p buildings.tar.gz -D "$RUNNER_TEMP" 2>/dev/null; then
+            tar -xzf "$RUNNER_TEMP/buildings.tar.gz" -C _site/data
+            echo "building tiles: $(find _site/data/buildings -name '*.pbf' | wc -l) files"
+          else
+            echo "no buildings.tar.gz on site-assets — PNG fallback"
+          fi
 
           # app.js's init() bails before wiring the tab handlers if the story
           # index 404s — ship an empty one so it runs through and the Live

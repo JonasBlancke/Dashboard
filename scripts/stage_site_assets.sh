@@ -43,6 +43,14 @@ else
   echo "-- data/story/ missing or empty — skipping (Heat Stress tab stays empty on Pages)"
 fi
 
+if [ -d "$ROOT/data/buildings" ] && [ -n "$(ls -A "$ROOT/data/buildings" 2>/dev/null)" ]; then
+  echo "==> packing data/buildings/  ($(du -sh "$ROOT/data/buildings" | cut -f1))"
+  tar -C "$ROOT/data" -czf "$work/buildings.tar.gz" buildings
+  assets+=("$work/buildings.tar.gz")
+else
+  echo "-- data/buildings/ missing — Live Forecast falls back to the PNG buildings overlay (python pipeline/build_buildings.py <city>)"
+fi
+
 [ ${#assets[@]} -gt 0 ] || { echo "nothing to upload" >&2; exit 1; }
 
 echo "==> ensuring release $TAG exists"
