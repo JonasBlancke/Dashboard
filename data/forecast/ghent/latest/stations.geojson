@@ -15,9 +15,9 @@
         "name": "MOCCA Honda",
         "provider": "vlinder",
         "n_points_5min": 575,
-        "n_points_hourly": 49,
-        "first_time": "2026-11-08T04:20:00+00:00",
-        "last_time": "2026-11-10T04:15:00+00:00"
+        "n_points_hourly": 48,
+        "first_time": "2026-11-08T05:00:00+00:00",
+        "last_time": "2026-11-10T04:55:00+00:00"
       }
     },
     {
@@ -34,9 +34,9 @@
         "name": "MOCCA Plantentuin",
         "provider": "vlinder",
         "n_points_5min": 575,
-        "n_points_hourly": 49,
-        "first_time": "2026-11-08T04:20:00+00:00",
-        "last_time": "2026-11-10T04:15:00+00:00"
+        "n_points_hourly": 48,
+        "first_time": "2026-11-08T05:00:00+00:00",
+        "last_time": "2026-11-10T04:55:00+00:00"
       }
     },
     {
@@ -53,9 +53,9 @@
         "name": "MOCCA Provinciehuis",
         "provider": "vlinder",
         "n_points_5min": 575,
-        "n_points_hourly": 49,
-        "first_time": "2026-11-08T04:20:00+00:00",
-        "last_time": "2026-11-10T04:15:00+00:00"
+        "n_points_hourly": 48,
+        "first_time": "2026-11-08T05:00:00+00:00",
+        "last_time": "2026-11-10T04:55:00+00:00"
       }
     },
     {
@@ -72,9 +72,9 @@
         "name": "MOCCA Tweekerken",
         "provider": "vlinder",
         "n_points_5min": 575,
-        "n_points_hourly": 49,
-        "first_time": "2026-11-08T04:20:00+00:00",
-        "last_time": "2026-11-10T04:15:00+00:00"
+        "n_points_hourly": 48,
+        "first_time": "2026-11-08T05:00:00+00:00",
+        "last_time": "2026-11-10T04:55:00+00:00"
       }
     },
     {
@@ -91,9 +91,9 @@
         "name": "Sterre",
         "provider": "vlinder",
         "n_points_5min": 571,
-        "n_points_hourly": 49,
-        "first_time": "2026-11-08T04:20:00+00:00",
-        "last_time": "2026-11-10T04:10:00+00:00"
+        "n_points_hourly": 48,
+        "first_time": "2026-11-08T05:00:00+00:00",
+        "last_time": "2026-11-10T04:50:00+00:00"
       }
     },
     {
@@ -110,16 +110,16 @@
         "name": "MOCCA Wondelgem",
         "provider": "vlinder",
         "n_points_5min": 575,
-        "n_points_hourly": 49,
-        "first_time": "2026-11-08T04:20:00+00:00",
-        "last_time": "2026-11-10T04:15:00+00:00"
+        "n_points_hourly": 48,
+        "first_time": "2026-11-08T05:00:00+00:00",
+        "last_time": "2026-11-10T04:55:00+00:00"
       }
     }
   ],
   "properties": {
     "city": "ghent",
-    "window_start": "2026-11-08T04:15:27Z",
-    "window_end": "2026-11-10T04:15:27Z",
-    "fetched_at": "2026-11-10T04:15:49Z"
+    "window_start": "2026-11-08T04:55:48Z",
+    "window_end": "2026-11-10T04:55:48Z",
+    "fetched_at": "2026-11-10T04:56:10Z"
   }
 }
