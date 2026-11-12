@@ -167,6 +167,11 @@ jobs:
         env:
           ML_URBANHEAT_DIR: ${{ github.workspace }}/pipeline/ml_urbanheat
           SPATIAL_TIFS_DIR: ${{ github.workspace }}/data/forecast/_spatial
+          # Ecowitt PWS (Dublin) — read by pipeline/fetch_stations/providers/ecowitt.py.
+          # Unset secrets = empty strings = that provider writes an empty stations.geojson.
+          ECOWITT_APPLICATION_KEY: ${{ secrets.ECOWITT_APPLICATION_KEY }}
+          ECOWITT_API_KEY: ${{ secrets.ECOWITT_API_KEY }}
+          ECOWITT_STATIONS: ${{ secrets.ECOWITT_STATIONS }}
         run: |
           set -euo pipefail
           d="data/forecast/${{ matrix.city }}"

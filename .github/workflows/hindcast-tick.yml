@@ -83,6 +83,11 @@ jobs:
           pip install numpy rasterio pillow pyyaml xarray netCDF4
 
       - name: Re-run hindcast merge + station fetch
+        env:
+          # Ecowitt PWS (Dublin) — see pipeline/fetch_stations/providers/ecowitt.py
+          ECOWITT_APPLICATION_KEY: ${{ secrets.ECOWITT_APPLICATION_KEY }}
+          ECOWITT_API_KEY: ${{ secrets.ECOWITT_API_KEY }}
+          ECOWITT_STATIONS: ${{ secrets.ECOWITT_STATIONS }}
         run: |
           set -euo pipefail
           d="data/forecast/${{ matrix.city }}"

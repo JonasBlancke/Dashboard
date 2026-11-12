@@ -22,7 +22,7 @@ and exits 0.
 
 from __future__ import annotations
 
-from . import vlinder
+from . import ecowitt, vlinder
 
 
 def _stub(source: str):
@@ -39,7 +39,8 @@ PROVIDERS = {
     # Dublin: Met Éireann has no open sub-daily station API; nearest is the
     #   hourly SYNOP CSV at cli.fusio.net / data.gov.ie. RMI opendata is Belgium
     #   only.
-    "dublin": _stub("Met Éireann hourly SYNOP (data.gov.ie) or Weather Underground PWS"),
+    # Dublin: personal Ecowitt stations (keys + station list via env, see ecowitt.py)
+    "dublin": ecowitt.fetch,
     # Patras: Hellenic NMS (emy.gr) has no open API; NOA / meteo.gr Automatic
     #   Network (penteli.meteo.gr) exposes station JSON.
     "patras": _stub("NOA meteo.gr Automatic Weather Stations (penteli.meteo.gr)"),
