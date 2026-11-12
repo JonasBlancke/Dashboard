@@ -6,8 +6,27 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          -6.2004,
-          53.3484
+          -6.2318,
+          53.3489
+        ]
+      },
+      "properties": {
+        "slug": "dublin-ies-office",
+        "name": "DUBLIN_IES_OFFICE",
+        "provider": "ecowitt",
+        "n_points_5min": 575,
+        "n_points_hourly": 49,
+        "first_time": "2026-11-10T14:45:00Z",
+        "last_time": "2026-11-12T14:35:00Z"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -6.22837,
+          53.34408
         ]
       },
       "properties": {
@@ -15,16 +34,16 @@
         "name": "RICC roof",
         "provider": "ecowitt",
         "n_points_5min": 574,
-        "n_points_hourly": 48,
-        "first_time": "2026-11-10T14:00:00Z",
-        "last_time": "2026-11-12T13:45:00Z"
+        "n_points_hourly": 49,
+        "first_time": "2026-11-10T14:45:00Z",
+        "last_time": "2026-11-12T14:30:00Z"
       }
     }
   ],
   "properties": {
     "city": "dublin",
-    "window_start": "2026-11-10T13:58:53Z",
-    "window_end": "2026-11-12T13:58:53Z",
-    "fetched_at": "2026-11-12T13:58:56Z"
+    "window_start": "2026-11-10T14:43:28Z",
+    "window_end": "2026-11-12T14:43:28Z",
+    "fetched_at": "2026-11-12T14:43:32Z"
   }
 }
