@@ -1,8 +1,30 @@
 {
   "type": "FeatureCollection",
-  "features": [],
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -6.2004,
+          53.3484
+        ]
+      },
+      "properties": {
+        "slug": "ricc-roof",
+        "name": "RICC roof",
+        "provider": "ecowitt",
+        "n_points_5min": 574,
+        "n_points_hourly": 48,
+        "first_time": "2026-11-10T12:05:00Z",
+        "last_time": "2026-11-12T11:50:00Z"
+      }
+    }
+  ],
   "properties": {
     "city": "dublin",
-    "empty_reason": "no station provider wired yet - intended source: Met \u00c9ireann hourly SYNOP (data.gov.ie) or Weather Underground PWS"
+    "window_start": "2026-11-10T12:03:13Z",
+    "window_end": "2026-11-12T12:03:13Z",
+    "fetched_at": "2026-11-12T12:03:16Z"
   }
 }

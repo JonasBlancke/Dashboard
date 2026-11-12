@@ -16,15 +16,15 @@
         "provider": "ecowitt",
         "n_points_5min": 574,
         "n_points_hourly": 48,
-        "first_time": "2026-11-10T12:05:00Z",
-        "last_time": "2026-11-12T11:50:00Z"
+        "first_time": "2026-11-10T14:00:00Z",
+        "last_time": "2026-11-12T13:45:00Z"
       }
     }
   ],
   "properties": {
     "city": "dublin",
-    "window_start": "2026-11-10T12:03:13Z",
-    "window_end": "2026-11-12T12:03:13Z",
-    "fetched_at": "2026-11-12T12:03:16Z"
+    "window_start": "2026-11-10T13:58:53Z",
+    "window_end": "2026-11-12T13:58:53Z",
+    "fetched_at": "2026-11-12T13:58:56Z"
   }
 }
