@@ -84,7 +84,8 @@ def _load_archive(latest: Path, previous: Path) -> dict:
             out = {}
             for k, hr in enumerate(hours):
                 out[hr["utc"]] = {"data": np.array(cube[k], dtype="float32"),
-                                  "source_issue": hr.get("source_issue")}
+                                  "source_issue": hr.get("source_issue"),
+                                  "bounds": hdr.get("bounds_wgs84")}
             print(f"  hindcast: loaded {len(out)} slabs from {base.name}/")
             if out:
                 return out
@@ -99,7 +100,8 @@ def _load_archive(latest: Path, previous: Path) -> dict:
     if pmeta_p.is_file() and pvals_p.is_file():
         try:
             pmeta = json.loads(pmeta_p.read_text(encoding="utf-8"))
-            out = {u: {"data": s, "source_issue": i}
+            pb = pmeta["value_grid"].get("bounds_wgs84")
+            out = {u: {"data": s, "source_issue": i, "bounds": pb}
                    for u, s, i in _fresh_slabs(pmeta, pvals_p)}
             print(f"  hindcast: bootstrapped {len(out)} slabs from previous/values.bin"
                   f" (issue {pmeta.get('forecast_issue_time_utc')})")
@@ -121,6 +123,28 @@ def _fresh_slabs(meta: dict, values_bin: Path):
     issue = meta["forecast_issue_time_utc"]
     for k, fr in enumerate(meta["frames"]):
         yield fr["utc"], np.array(cube[k], dtype="float32"), issue
+
+
+def _fit_slab(slab: np.ndarray, src_bounds, vg: dict) -> np.ndarray | None:
+    """Return `slab` on the current value grid `vg`, or None if it can't be mapped.
+
+    Same shape -> unchanged. Otherwise the slab must come from the same native
+    lattice with the same top-left corner (an AOI edit only crops or extends the
+    grid on its east / south side): it is cropped, or NaN-padded, to (ny, nx).
+    Checked via the west and north edges of bounds_wgs84."""
+    ny, nx = int(vg["height"]), int(vg["width"])
+    if slab.shape == (ny, nx):
+        return slab
+    nb = vg.get("bounds_wgs84")
+    if not (src_bounds and nb):
+        return None
+    tol = 1e-5                                   # ~1 m — far below a 50 m pixel
+    if abs(src_bounds[0] - nb[0]) > tol or abs(src_bounds[3] - nb[3]) > tol:
+        return None                              # origin moved: not a plain crop
+    out = np.full((ny, nx), np.nan, dtype="float32")
+    h, w = min(ny, slab.shape[0]), min(nx, slab.shape[1])
+    out[:h, :w] = slab[:h, :w]
+    return out
 
 
 def _better_source(old_issue: str | None, new_issue: str, slab_utc: str) -> bool:
@@ -228,14 +252,41 @@ def update_hindcast(city_id: str, cfg: dict | None = None,
     if pmeta_p.is_file() and pvalues_p.is_file():
         sources.append((json.loads(pmeta_p.read_text(encoding="utf-8")), pvalues_p))
     for smeta, svalues in sources:
+        sb = smeta["value_grid"].get("bounds_wgs84")
         for utc, slab, issue in _fresh_slabs(smeta, svalues):
             cur = archive.get(utc)
             if cur is None or _better_source(cur["source_issue"], issue, utc):
-                archive[utc] = {"data": slab, "source_issue": issue}
+                archive[utc] = {"data": slab, "source_issue": issue, "bounds": sb}
 
     # keep only [now-48h, now]: drop older than the cutoff and anything still in
     # the future (a slab is "past" only once wall-clock has passed it)
     kept = {u: v for u, v in archive.items() if cutoff <= u <= now_iso}
+
+    # the value grid can change between runs (e.g. the AOI was edited, which
+    # crops the native grid). Re-fit older slabs onto today's grid instead of
+    # letting one mismatched slab sink the whole archive.
+    vg = meta["value_grid"]
+    ny, nx = int(vg["height"]), int(vg["width"])
+    cur_mask = None                              # today's modelled-pixel footprint
+    n_fit = 0
+    for u in list(kept):
+        slab = kept[u]["data"]
+        if slab.shape == (ny, nx):
+            continue
+        fitted = _fit_slab(slab, kept[u].get("bounds"), vg)
+        if fitted is None:
+            print(f"  hindcast: dropped {u} — grid {slab.shape} can't be "
+                  f"mapped onto the current {ny}x{nx} grid")
+            del kept[u]
+            continue
+        if cur_mask is None:
+            cur_mask = np.isfinite(next(_fresh_slabs(meta, values_p))[1])
+        fitted[~cur_mask] = np.nan               # e.g. pixels the new AOI dropped
+        kept[u]["data"] = fitted
+        n_fit += 1
+    if n_fit:
+        print(f"  hindcast: re-fitted {n_fit} slab(s) from an older grid onto {ny}x{nx}")
+
     if not kept:
         print(f"  hindcast: no slabs in [{cutoff}, {now_iso}] yet — archive empty")
         # still write an empty header so the frontend flag is deterministic
@@ -243,9 +294,7 @@ def update_hindcast(city_id: str, cfg: dict | None = None,
         return None
 
     hours_sorted = sorted(kept)
-    vg = meta["value_grid"]
-    ny, nx = int(vg["height"]), int(vg["width"])
-    cube = np.stack([kept[u]["data"] for u in hours_sorted]).astype("<f4")
+    cube =np.stack([kept[u]["data"] for u in hours_sorted]).astype("<f4")
     assert cube.shape == (len(hours_sorted), ny, nx), cube.shape
 
     tz = meta.get("timezone", "UTC")
