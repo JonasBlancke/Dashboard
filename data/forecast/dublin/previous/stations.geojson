@@ -6,8 +6,27 @@
       "geometry": {
         "type": "Point",
         "coordinates": [
-          -6.2004,
-          53.3484
+          -6.2318,
+          53.3489
+        ]
+      },
+      "properties": {
+        "slug": "dublin-ies-office",
+        "name": "DUBLIN_IES_OFFICE",
+        "provider": "ecowitt",
+        "n_points_5min": 575,
+        "n_points_hourly": 49,
+        "first_time": "2026-11-11T07:10:00Z",
+        "last_time": "2026-11-13T07:00:00Z"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          -6.22837,
+          53.34408
         ]
       },
       "properties": {
@@ -16,15 +35,15 @@
         "provider": "ecowitt",
         "n_points_5min": 574,
         "n_points_hourly": 48,
-        "first_time": "2026-11-10T12:05:00Z",
-        "last_time": "2026-11-12T11:50:00Z"
+        "first_time": "2026-11-11T07:10:00Z",
+        "last_time": "2026-11-13T06:55:00Z"
       }
     }
   ],
   "properties": {
     "city": "dublin",
-    "window_start": "2026-11-10T12:03:13Z",
-    "window_end": "2026-11-12T12:03:13Z",
-    "fetched_at": "2026-11-12T12:03:16Z"
+    "window_start": "2026-11-11T07:08:29Z",
+    "window_end": "2026-11-13T07:08:29Z",
+    "fetched_at": "2026-11-13T07:08:35Z"
   }
 }
