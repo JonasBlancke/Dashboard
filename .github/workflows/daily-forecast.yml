@@ -183,10 +183,26 @@ jobs:
           else
             echo "none" > "$RUNNER_TEMP/prev_issue.txt"
           fi
-          python pipeline/run_city_forecast.py \
-            --city "${{ matrix.city }}" \
-            --ml-urbanheat "$ML_URBANHEAT_DIR" \
-            ${{ github.event.inputs.date && format('--date {0}', github.event.inputs.date) || '' }}
+          # Open-Meteo intermittently stalls requests from shared GitHub runners
+          # (read timeouts while the same request answers in 0.2 s elsewhere);
+          # the client's own 5 quick retries span only ~2.5 min. Retry the whole
+          # run a few times with longer pauses before giving up on this city.
+          attempts=3
+          for i in $(seq 1 $attempts); do
+            if python pipeline/run_city_forecast.py \
+                 --city "${{ matrix.city }}" \
+                 --ml-urbanheat "$ML_URBANHEAT_DIR" \
+                 ${{ github.event.inputs.date && format('--date {0}', github.event.inputs.date) || '' }}; then
+              break
+            fi
+            if [ "$i" -eq "$attempts" ]; then
+              echo "::error::run_city_forecast failed $attempts times — keeping the last good forecast"
+              exit 1
+            fi
+            wait=$((i * 180))
+            echo "::warning::attempt $i/$attempts failed — retrying in ${wait}s"
+            sleep "$wait"
+          done
 
       - name: Commit (full frames on a new issue; hindcast/stations always)
         run: |
