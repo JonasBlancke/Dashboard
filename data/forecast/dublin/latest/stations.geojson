@@ -14,10 +14,10 @@
         "slug": "dublin-ies-office",
         "name": "DUBLIN_IES_OFFICE",
         "provider": "ecowitt",
-        "n_points_5min": 574,
+        "n_points_5min": 575,
         "n_points_hourly": 49,
-        "first_time": "2026-11-11T00:15:00Z",
-        "last_time": "2026-11-13T00:00:00Z"
+        "first_time": "2026-11-11T07:10:00Z",
+        "last_time": "2026-11-13T07:00:00Z"
       }
     },
     {
@@ -34,16 +34,16 @@
         "name": "RICC roof",
         "provider": "ecowitt",
         "n_points_5min": 574,
-        "n_points_hourly": 49,
-        "first_time": "2026-11-11T00:15:00Z",
-        "last_time": "2026-11-13T00:00:00Z"
+        "n_points_hourly": 48,
+        "first_time": "2026-11-11T07:10:00Z",
+        "last_time": "2026-11-13T06:55:00Z"
       }
     }
   ],
   "properties": {
     "city": "dublin",
-    "window_start": "2026-11-11T00:11:31Z",
-    "window_end": "2026-11-13T00:11:31Z",
-    "fetched_at": "2026-11-13T00:11:37Z"
+    "window_start": "2026-11-11T07:08:29Z",
+    "window_end": "2026-11-13T07:08:29Z",
+    "fetched_at": "2026-11-13T07:08:35Z"
   }
 }
