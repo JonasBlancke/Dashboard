@@ -16,8 +16,8 @@
         "provider": "ecowitt",
         "n_points_5min": 575,
         "n_points_hourly": 49,
-        "first_time": "2026-11-13T00:20:00Z",
-        "last_time": "2026-11-15T00:10:00Z"
+        "first_time": "2026-11-13T05:50:00Z",
+        "last_time": "2026-11-15T05:40:00Z"
       }
     },
     {
@@ -33,17 +33,17 @@
         "slug": "ricc-roof",
         "name": "RICC roof",
         "provider": "ecowitt",
-        "n_points_5min": 575,
+        "n_points_5min": 574,
         "n_points_hourly": 49,
-        "first_time": "2026-11-13T00:20:00Z",
-        "last_time": "2026-11-15T00:10:00Z"
+        "first_time": "2026-11-13T05:50:00Z",
+        "last_time": "2026-11-15T05:35:00Z"
       }
     }
   ],
   "properties": {
     "city": "dublin",
-    "window_start": "2026-11-13T00:19:37Z",
-    "window_end": "2026-11-15T00:19:37Z",
-    "fetched_at": "2026-11-15T00:19:43Z"
+    "window_start": "2026-11-13T05:49:07Z",
+    "window_end": "2026-11-15T05:49:07Z",
+    "fetched_at": "2026-11-15T05:49:12Z"
   }
 }
