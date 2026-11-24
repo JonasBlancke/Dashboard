@@ -16,8 +16,8 @@
         "provider": "ecowitt",
         "n_points_5min": 575,
         "n_points_hourly": 49,
-        "first_time": "2026-11-21T20:40:00Z",
-        "last_time": "2026-11-23T20:30:00Z"
+        "first_time": "2026-11-22T05:55:00Z",
+        "last_time": "2026-11-24T05:45:00Z"
       }
     },
     {
@@ -35,15 +35,15 @@
         "provider": "ecowitt",
         "n_points_5min": 571,
         "n_points_hourly": 49,
-        "first_time": "2026-11-21T20:40:00Z",
-        "last_time": "2026-11-23T20:25:00Z"
+        "first_time": "2026-11-22T05:55:00Z",
+        "last_time": "2026-11-24T05:40:00Z"
       }
     }
   ],
   "properties": {
     "city": "dublin",
-    "window_start": "2026-11-21T20:37:38Z",
-    "window_end": "2026-11-23T20:37:38Z",
-    "fetched_at": "2026-11-23T20:37:42Z"
+    "window_start": "2026-11-22T05:54:02Z",
+    "window_end": "2026-11-24T05:54:02Z",
+    "fetched_at": "2026-11-24T05:54:07Z"
   }
 }
