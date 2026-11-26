@@ -14,10 +14,10 @@
         "slug": "dublin-ies-office",
         "name": "DUBLIN_IES_OFFICE",
         "provider": "ecowitt",
-        "n_points_5min": 574,
+        "n_points_5min": 575,
         "n_points_hourly": 49,
-        "first_time": "2026-11-24T05:40:00Z",
-        "last_time": "2026-11-26T05:25:00Z"
+        "first_time": "2026-11-24T11:20:00Z",
+        "last_time": "2026-11-26T11:10:00Z"
       }
     },
     {
@@ -35,15 +35,15 @@
         "provider": "ecowitt",
         "n_points_5min": 568,
         "n_points_hourly": 49,
-        "first_time": "2026-11-24T05:40:00Z",
-        "last_time": "2026-11-26T05:25:00Z"
+        "first_time": "2026-11-24T11:20:00Z",
+        "last_time": "2026-11-26T11:05:00Z"
       }
     }
   ],
   "properties": {
     "city": "dublin",
-    "window_start": "2026-11-24T05:35:29Z",
-    "window_end": "2026-11-26T05:35:29Z",
-    "fetched_at": "2026-11-26T05:35:34Z"
+    "window_start": "2026-11-24T11:19:13Z",
+    "window_end": "2026-11-26T11:19:13Z",
+    "fetched_at": "2026-11-26T11:19:18Z"
   }
 }
